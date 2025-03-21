@@ -31,12 +31,14 @@ import { ForEachToForTransformer } from "./transformers/ForEachToForLoop";
 import traverse from "@babel/traverse";
 import { ConstantFoldingTransformer } from "./transformers/ConstantFolding";
 import { DeadCodeEliminationTransformer } from "./transformers/DeadCodeElimination";
+import { UnusedDeclarationEliminationTransformer } from "./transformers/UnusedDeclarationElimination";
 
 const TRANSFORMERS: NodeTransformer<any>[] = [
   ArrowFunctionToFunctionTransformer,
   ForEachToForTransformer,
   ConstantFoldingTransformer,
   DeadCodeEliminationTransformer,
+  UnusedDeclarationEliminationTransformer,
 ];
 
 function collectDeclaredVariables(ast: any): Set<string> {

@@ -23,11 +23,12 @@ import {
   MINIMAL_AST_KEYS,
 } from ".";
 import { ArrowFunctionToFunctionTransformer } from "./transformers/ArrowFunctionToFunctionTransformer.js";
-import { NodeTransformer } from "./transformers/transformers.js";
+import { NodeTransformer, Phase } from "./transformers/transformers.js";
 import * as babelParser from "@babel/parser";
 import { gzipSync } from "zlib";
 import { writeFileSync } from "fs";
 import { ForEachToForTransformer } from "./transformers/ForEachToForLoop";
+import traverse from "@babel/traverse";
 
 const TRANSFORMERS: NodeTransformer[] = [
   ArrowFunctionToFunctionTransformer,
@@ -72,15 +73,57 @@ export function compile(jsCode: string): CompiledProgram {
   const seenVars = new Map<string, number>();
   let varCounter = 0;
 
+  // Transformers
+  const phases: Phase[] = ["pre", "main", "post"];
+
+  for (const phase of phases) {
+    traverse(ast, {
+      enter(path) {
+        for (const transformer of TRANSFORMERS) {
+          const matchesPhase = transformer.phases
+            ? transformer.phases.includes(phase)
+            : true;
+          const matchesType =
+            !transformer.nodeTypes ||
+            transformer.nodeTypes.includes(path.node.type);
+          const passesTest = transformer.test(path.node);
+
+          if (matchesPhase && matchesType && passesTest) {
+            const newNode = transformer.transform(path.node, {
+              ast: ast,
+              declaredVars: declaredVars,
+              helpers: {
+                generateUid(base) {
+                  return path.scope.generateUidIdentifier(base);
+                },
+                replaceNode(from, to) {
+                  traverse(ast, {
+                    enter(path) {
+                      if (path.node === from) {
+                        path.replaceWith(to);
+                      }
+                    },
+                  });
+                },
+                insertBefore(node) {
+                  path.insertBefore(node);
+                },
+                insertAfter(node) {
+                  path.insertAfter(node);
+                },
+              },
+              parent: path.parent,
+            });
+            path.replaceWith(newNode);
+            break; // One transformer per node (optional rule)
+          }
+        }
+      },
+    });
+  }
+
   function encode(node: any): number | undefined {
     if (!node || typeof node !== "object") return;
-
-    // Check for transformers
-    for (const transformer of TRANSFORMERS) {
-      if (transformer.nodeType === node.type && transformer.test(node)) {
-        return encode(transformer.transform(node));
-      }
-    }
 
     // Check if type is currently unsupported
     if (node.type && !MINIMAL_AST_KEYS[node.type]) {

@@ -23,7 +23,7 @@ export const ConstantFoldingTransformer: NodeTransformer<t.BinaryExpression> = {
   displayName:
     "Constant Folding (Compile-time Evaluation of Binary Expressions)",
   nodeTypes: ["BinaryExpression"],
-  phases: ["pre"],
+  phases: ["pre", "main", "post"], // Explcitly run in all phases
 
   test(node): node is t.BinaryExpression {
     return (

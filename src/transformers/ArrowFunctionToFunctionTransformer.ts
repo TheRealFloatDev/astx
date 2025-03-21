@@ -18,7 +18,8 @@
 import { NodeTransformer } from "./transformers";
 
 export const ArrowFunctionToFunctionTransformer: NodeTransformer = {
-  nodeType: "ArrowFunctionExpression",
+  phases: ["pre"],
+  nodeTypes: ["ArrowFunctionExpression"],
   key: "arrow-to-function",
   displayName: "Arrow Function to Function Conversion",
   test: () => true, // always applicable

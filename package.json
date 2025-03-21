@@ -1,5 +1,5 @@
 {
-  "name": "astx",
+  "name": "@astx/lib",
   "version": "1.0.0",
   "description": "Compiler & Runtime library for a tiny JS AST based binary file format",
   "main": "./dist/index.js",

@@ -14,7 +14,7 @@
     "prepack": "npm run build"
   },
   "author": "Garmingo",
-  "license": "UNLICENSED",
+  "license": "GPL-3.0-only",
   "devDependencies": {
     "@types/jest": "^29.5.11",
     "jest": "^29.7.0",

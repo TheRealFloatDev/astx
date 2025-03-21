@@ -20,14 +20,14 @@ This project is inspired by [WebAssembly](https://webassembly.org/), but it is n
 
 ## Installation
 ```bash
-npm install astx
+npm install @astx/lib
 ```
 
 ## Usage
 
 ### Compiling
 ```javascript
-import { compile, saveToFile } from 'astx';
+import { compile, saveToFile } from '@astx/lib';
 
 const program = compile(`
   function main() {
@@ -40,7 +40,7 @@ saveToFile(program, 'program.astx');
 
 ### Running
 ```javascript
-import { loadFromFile, run } from 'astx';
+import { loadFromFile, run } from '@astx/lib';
 
 const program = loadFromFile('program.astx');
 const result = run(program); 

@@ -105,7 +105,9 @@ export function compile(jsCode: string): CompiledProgram {
               path: path,
               helpers: {
                 generateUid(base) {
-                  return path.scope.generateUidIdentifier(base);
+                  const identifier = path.scope.generateUidIdentifier(base);
+                  declaredVars.add(identifier.name);
+                  return identifier;
                 },
                 replaceNode(from, to) {
                   traverse(ast, {

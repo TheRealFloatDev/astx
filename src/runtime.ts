@@ -16,11 +16,28 @@
  */
 
 import { decode } from "@msgpack/msgpack";
-import { CompiledProgram, FORMAT_VERSION, MAGIC_HEADER } from ".";
+import {
+  CompiledProgram,
+  FORMAT_VERSION,
+  MAGIC_HEADER,
+  MINIMAL_AST_KEYS,
+} from ".";
 import { gunzipSync } from "zlib";
 import { readFileSync } from "fs";
+import generate from "@babel/generator";
+import { templateElement } from "@babel/types";
 
-export function loadFile(filename: string): CompiledProgram {
+function generateShortName(index: number): string {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  let name = "";
+  do {
+    name = chars[index % chars.length] + name;
+    index = Math.floor(index / chars.length) - 1;
+  } while (index >= 0);
+  return name;
+}
+
+export function loadFromFile(filename: string): CompiledProgram {
   const file = readFileSync(filename);
   const magic = file.subarray(0, 4);
   const version = file[4];
@@ -48,4 +65,66 @@ export function loadFile(filename: string): CompiledProgram {
   ];
 
   return { expressionDict, valueDict, bytecode };
+}
+
+function decodeToAST(compiled: CompiledProgram): any {
+  const { expressionDict, valueDict, bytecode } = compiled;
+
+  function decode(index: number): any {
+    const node = bytecode[index];
+    if (!Array.isArray(node)) return;
+
+    const [typeIndex, ...args] = node;
+    const type = expressionDict[typeIndex];
+    let obj: any;
+    if (type === "TemplateElement") {
+      const [valueArg, tailArg] = args;
+      obj = templateElement(valueDict[valueArg], tailArg);
+      obj.type = "TemplateElement";
+      return obj;
+    } else {
+      obj = { type };
+    }
+
+    const keys = MINIMAL_AST_KEYS[type] || [];
+    keys.forEach((key: string, i: number) => {
+      const arg = args[i];
+
+      if (type === "Identifier" && key === "name") {
+        if (typeof arg === "number") {
+          obj.name = generateShortName(arg);
+        } else {
+          obj.name = arg;
+        }
+      } else if (
+        (type === "Literal" || type.endsWith("Literal")) &&
+        key === "value"
+      ) {
+        obj.value = valueDict[arg];
+      } else if (Array.isArray(arg)) {
+        obj[key] = arg.map((a) => (typeof a === "number" ? decode(a) : a));
+      } else if (typeof arg === "number" && bytecode[arg]) {
+        obj[key] = decode(arg);
+      } else {
+        obj[key] = arg;
+      }
+    });
+
+    return obj;
+  }
+
+  return decode(bytecode.length - 1);
+}
+
+export function generateJSCode(compiled: CompiledProgram): string {
+  const ast = decodeToAST(compiled);
+  const { code } = generate(ast);
+  return code;
+}
+
+export function run(compiled: CompiledProgram) {
+  const code = generateJSCode(compiled);
+
+  const fn = new Function(code);
+  return fn();
 }

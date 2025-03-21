@@ -115,7 +115,7 @@ function collectDeclaredVariables(ast: any): Set<string> {
   return declared;
 }
 
-function compileJS(jsCode: string): CompiledProgram {
+export function compile(jsCode: string): CompiledProgram {
   const ast = babelParser.parse(jsCode, { sourceType: "module" });
   const valueDict: any[] = [];
   const expressionDict: string[] = [];

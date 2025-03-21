@@ -15,10 +15,13 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { encode } from "@msgpack/msgpack";
 import { CompiledProgram } from ".";
 import { ArrowFunctionToFunctionTransformer } from "./transformers/arrowFunctionToFunctionTransformer";
 import { NodeTransformer } from "./transformers/transformers";
 import * as babelParser from "@babel/parser";
+import { gzipSync } from "zlib";
+import { writeFileSync } from "fs";
 
 const TRANSFORMERS: NodeTransformer[] = [ArrowFunctionToFunctionTransformer];
 
@@ -207,4 +210,17 @@ export function compile(jsCode: string): CompiledProgram {
     valueDict,
     bytecode,
   };
+}
+
+export function saveToFile(program: CompiledProgram, filename: string) {
+  const encoded = encode([
+    program.expressionDict,
+    program.valueDict,
+    program.bytecode,
+  ]);
+  const magic = Buffer.from([0xa5, 0x7b, 0x1c, 0x00]); // custom magic header
+  const version = Buffer.from([0x01]); // format version
+  const compressed = gzipSync(encoded);
+  const full = Buffer.concat([magic, version, compressed]);
+  writeFileSync(filename, full);
 }

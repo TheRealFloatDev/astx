@@ -17,7 +17,6 @@
 
 import * as t from "@babel/types";
 import { NodeTransformer, TransformContext } from "./transformers";
-import { NodePath } from "@babel/traverse";
 
 export const ForOfToIndexedTransformer: NodeTransformer<t.ForOfStatement> = {
   key: "for-of-to-indexed",

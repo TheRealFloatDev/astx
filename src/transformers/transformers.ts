@@ -15,10 +15,67 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-export interface NodeTransformer {
-  nodeType: string;
+import * as t from "@babel/types";
+
+export type Phase = "pre" | "main" | "post";
+
+export interface TransformContext {
+  /**
+   * The AST of the program
+   */
+  ast: t.File;
+  /**
+   * The parent node of the current node
+   */
+  parent?: t.Node;
+  /**
+   * The declared variables in the current scope
+   */
+  declaredVars: Set<string>;
+  /**
+   * Helper functions to generate unique identifiers and replace nodes
+   */
+  helpers: {
+    /**
+     * Generates a unique identifier
+     * @param base The base name of the identifier
+     */
+    generateUid(base?: string): t.Identifier;
+    /**
+     * Replaces a node in the AST with another node
+     * @param from The node to replace
+     * @param to The node to replace with
+     * @returns void
+     */
+    replaceNode: (from: t.Node, to: t.Node) => void;
+    /**
+     * Inserts a node before the current node
+     * @param node The node to insert
+     * @returns void
+     */
+    insertBefore?: (node: t.Node) => void;
+    /**
+     * Inserts a node after the current node
+     * @param node The node to insert
+     * @returns void
+     */
+    insertAfter?: (node: t.Node) => void;
+  };
+}
+
+export interface NodeTransformer<TNode extends t.Node = t.Node> {
   key: string;
   displayName: string;
-  test(node: any): boolean;
-  transform(node: any): any;
+
+  // Optional: Limits the node types this transformer applies to
+  nodeTypes?: TNode["type"][];
+
+  // Optional: Which phases this transformer runs in (default: all)
+  phases?: Phase[];
+
+  // Required: Checks if this transformer should run on a given node
+  test: (node: t.Node) => node is TNode;
+
+  // Required: Transforms the node
+  transform: (node: TNode, context: TransformContext) => t.Node;
 }

@@ -22,7 +22,7 @@ import {
   MAGIC_HEADER,
   MINIMAL_AST_KEYS,
 } from ".";
-import { ArrowFunctionToFunctionTransformer } from "./transformers/arrowFunctionToFunctionTransformer.js";
+import { ArrowFunctionToFunctionTransformer } from "./transformers/ArrowFunctionToFunctionTransformer.js";
 import { NodeTransformer } from "./transformers/transformers.js";
 import * as babelParser from "@babel/parser";
 import { gzipSync } from "zlib";

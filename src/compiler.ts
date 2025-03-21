@@ -30,11 +30,13 @@ import { writeFileSync } from "fs";
 import { ForEachToForTransformer } from "./transformers/ForEachToForLoop";
 import traverse from "@babel/traverse";
 import { ConstantFoldingTransformer } from "./transformers/ConstantFolding";
+import { DeadCodeEliminationTransformer } from "./transformers/DeadCodeElimination";
 
 const TRANSFORMERS: NodeTransformer<any>[] = [
   ArrowFunctionToFunctionTransformer,
   ForEachToForTransformer,
   ConstantFoldingTransformer,
+  DeadCodeEliminationTransformer,
 ];
 
 function collectDeclaredVariables(ast: any): Set<string> {

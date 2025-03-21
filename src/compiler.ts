@@ -16,7 +16,12 @@
  */
 
 import { encode } from "@msgpack/msgpack";
-import { CompiledProgram, FORMAT_VERSION, MAGIC_HEADER } from ".";
+import {
+  CompiledProgram,
+  FORMAT_VERSION,
+  MAGIC_HEADER,
+  MINIMAL_AST_KEYS,
+} from ".";
 import { ArrowFunctionToFunctionTransformer } from "./transformers/arrowFunctionToFunctionTransformer";
 import { NodeTransformer } from "./transformers/transformers";
 import * as babelParser from "@babel/parser";
@@ -24,72 +29,6 @@ import { gzipSync } from "zlib";
 import { writeFileSync } from "fs";
 
 const TRANSFORMERS: NodeTransformer[] = [ArrowFunctionToFunctionTransformer];
-
-const MINIMAL_AST_KEYS: Record<string, string[]> = {
-  // Program structure
-  Program: ["body", "sourceType"],
-  BlockStatement: ["body"],
-
-  // Declarations
-  VariableDeclaration: ["declarations", "kind"],
-  VariableDeclarator: ["id", "init"],
-  FunctionDeclaration: ["id", "params", "body"],
-
-  // Expressions
-  BinaryExpression: ["left", "operator", "right"],
-  UpdateExpression: ["operator", "argument", "prefix"],
-  AssignmentExpression: ["left", "operator", "right"],
-  CallExpression: ["callee", "arguments"],
-  MemberExpression: ["object", "property", "computed"],
-  ArrowFunctionExpression: ["params", "body", "expression"],
-  ExpressionStatement: ["expression"],
-  NewExpression: ["callee", "arguments"],
-  UnaryExpression: ["operator", "argument", "prefix"],
-  LogicalExpression: ["left", "operator", "right"],
-  ConditionalExpression: ["test", "consequent", "alternate"],
-  ObjectExpression: ["properties"],
-  ArrayExpression: ["elements"],
-  ClassExpression: ["id", "superClass", "body"],
-  ThisExpression: [],
-  AwaitExpression: ["argument"],
-
-  // Statements
-  IfStatement: ["test", "consequent", "alternate"],
-  ForStatement: ["init", "test", "update", "body"],
-  WhileStatement: ["test", "body"],
-  ReturnStatement: ["argument"],
-  ForOfStatement: ["left", "right", "body"],
-  ContinueStatement: ["label"],
-  BreakStatement: ["label"],
-  ThrowStatement: ["argument"],
-  SwitchStatement: ["discriminant", "cases"],
-
-  // Literals and Identifiers
-  Identifier: ["name"],
-  Literal: ["value"],
-  NumericLiteral: ["value"],
-  StringLiteral: ["value"],
-  BooleanLiteral: ["value"],
-  NullLiteral: [],
-  RegExpLiteral: ["pattern", "flags"],
-  TemplateLiteral: ["quasis", "expressions"],
-
-  // Elements
-  RestElement: ["argument"],
-  SpreadElement: ["argument"],
-  TemplateElement: ["value", "tail"],
-
-  // Patterns
-  AssignmentPattern: ["left", "right"],
-  ObjectPattern: ["properties"],
-
-  // Other
-  ObjectProperty: ["key", "value"],
-  ClassBody: ["body"],
-  ClassMethod: ["key", "params", "body"],
-  SwitchCase: ["test", "consequent"],
-  null: [],
-};
 
 function collectDeclaredVariables(ast: any): Set<string> {
   const declared = new Set<string>();

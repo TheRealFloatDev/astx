@@ -38,3 +38,69 @@ export interface CompiledProgram {
 
 export const MAGIC_HEADER = Buffer.from([0xa5, 0x7b, 0x1c, 0x00]);
 export const FORMAT_VERSION = Buffer.from([0x01]);
+
+export const MINIMAL_AST_KEYS: Record<string, string[]> = {
+  // Program structure
+  Program: ["body", "sourceType"],
+  BlockStatement: ["body"],
+
+  // Declarations
+  VariableDeclaration: ["declarations", "kind"],
+  VariableDeclarator: ["id", "init"],
+  FunctionDeclaration: ["id", "params", "body"],
+
+  // Expressions
+  BinaryExpression: ["left", "operator", "right"],
+  UpdateExpression: ["operator", "argument", "prefix"],
+  AssignmentExpression: ["left", "operator", "right"],
+  CallExpression: ["callee", "arguments"],
+  MemberExpression: ["object", "property", "computed"],
+  ArrowFunctionExpression: ["params", "body", "expression"],
+  ExpressionStatement: ["expression"],
+  NewExpression: ["callee", "arguments"],
+  UnaryExpression: ["operator", "argument", "prefix"],
+  LogicalExpression: ["left", "operator", "right"],
+  ConditionalExpression: ["test", "consequent", "alternate"],
+  ObjectExpression: ["properties"],
+  ArrayExpression: ["elements"],
+  ClassExpression: ["id", "superClass", "body"],
+  ThisExpression: [],
+  AwaitExpression: ["argument"],
+
+  // Statements
+  IfStatement: ["test", "consequent", "alternate"],
+  ForStatement: ["init", "test", "update", "body"],
+  WhileStatement: ["test", "body"],
+  ReturnStatement: ["argument"],
+  ForOfStatement: ["left", "right", "body"],
+  ContinueStatement: ["label"],
+  BreakStatement: ["label"],
+  ThrowStatement: ["argument"],
+  SwitchStatement: ["discriminant", "cases"],
+
+  // Literals and Identifiers
+  Identifier: ["name"],
+  Literal: ["value"],
+  NumericLiteral: ["value"],
+  StringLiteral: ["value"],
+  BooleanLiteral: ["value"],
+  NullLiteral: [],
+  RegExpLiteral: ["pattern", "flags"],
+  TemplateLiteral: ["quasis", "expressions"],
+
+  // Elements
+  RestElement: ["argument"],
+  SpreadElement: ["argument"],
+  TemplateElement: ["value", "tail"],
+
+  // Patterns
+  AssignmentPattern: ["left", "right"],
+  ObjectPattern: ["properties"],
+
+  // Other
+  ObjectProperty: ["key", "value"],
+  ClassBody: ["body"],
+  ClassMethod: ["key", "params", "body"],
+  SwitchCase: ["test", "consequent"],
+  null: [],
+};

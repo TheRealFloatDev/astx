@@ -29,10 +29,12 @@ import { gzipSync } from "zlib";
 import { writeFileSync } from "fs";
 import { ForEachToForTransformer } from "./transformers/ForEachToForLoop";
 import traverse from "@babel/traverse";
+import { ConstantFoldingTransformer } from "./transformers/ConstantFolding";
 
 const TRANSFORMERS: NodeTransformer<any>[] = [
   ArrowFunctionToFunctionTransformer,
   ForEachToForTransformer,
+  ConstantFoldingTransformer,
 ];
 
 function collectDeclaredVariables(ast: any): Set<string> {

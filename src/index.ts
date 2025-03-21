@@ -66,6 +66,7 @@ export const MINIMAL_AST_KEYS: Record<string, string[]> = {
   ClassExpression: ["id", "superClass", "body"],
   ThisExpression: [],
   AwaitExpression: ["argument"],
+  FunctionExpression: ["id", "params", "body"],
 
   // Statements
   IfStatement: ["test", "consequent", "alternate"],

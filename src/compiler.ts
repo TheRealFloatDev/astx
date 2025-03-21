@@ -34,6 +34,7 @@ import { DeadCodeEliminationTransformer } from "./transformers/DeadCodeEliminati
 import { PowToMultiplyTransformer } from "./transformers/PowToMultiply";
 import { LogicalSimplificationTransformer } from "./transformers/LogicalSimplification";
 import { HoistArrayLengthTransformer } from "./transformers/HoistArrayLength";
+import { ForOfToIndexedTransformer } from "./transformers/ForOfToIndexed";
 
 const TRANSFORMERS: NodeTransformer<any>[] = [
   ArrowFunctionToFunctionTransformer,
@@ -43,6 +44,7 @@ const TRANSFORMERS: NodeTransformer<any>[] = [
   PowToMultiplyTransformer,
   LogicalSimplificationTransformer,
   HoistArrayLengthTransformer,
+  ForOfToIndexedTransformer,
 ];
 
 function collectDeclaredVariables(ast: any): Set<string> {

@@ -33,6 +33,7 @@ import { ConstantFoldingTransformer } from "./transformers/ConstantFolding";
 import { DeadCodeEliminationTransformer } from "./transformers/DeadCodeElimination";
 import { PowToMultiplyTransformer } from "./transformers/PowToMultiply";
 import { LogicalSimplificationTransformer } from "./transformers/LogicalSimplification";
+import { DestructureFlattenerTransformer } from "./transformers/DestructureFlattener";
 
 const TRANSFORMERS: NodeTransformer<any>[] = [
   ArrowFunctionToFunctionTransformer,
@@ -41,6 +42,7 @@ const TRANSFORMERS: NodeTransformer<any>[] = [
   DeadCodeEliminationTransformer,
   PowToMultiplyTransformer,
   LogicalSimplificationTransformer,
+  DestructureFlattenerTransformer,
 ];
 
 function collectDeclaredVariables(ast: any): Set<string> {

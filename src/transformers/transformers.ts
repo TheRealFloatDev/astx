@@ -15,6 +15,7 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { NodePath } from "@babel/traverse";
 import * as t from "@babel/types";
 
 export type Phase = "pre" | "main" | "post";
@@ -32,6 +33,11 @@ export interface TransformContext {
    * The declared variables in the current scope
    */
   declaredVars: Set<string>;
+  /**
+   * The current path in the AST
+   * @see https://babeljs.io/docs/en/babel-traverse#path
+   */
+  path: NodePath<any>;
   /**
    * Helper functions to generate unique identifiers and replace nodes
    */

@@ -98,6 +98,7 @@ export function compile(jsCode: string): CompiledProgram {
             const newNode = transformer.transform(path.node, {
               ast: ast,
               declaredVars: declaredVars,
+              path: path,
               helpers: {
                 generateUid(base) {
                   return path.scope.generateUidIdentifier(base);

@@ -35,3 +35,6 @@ export interface CompiledProgram {
    */
   bytecode: any[];
 }
+
+export const MAGIC_HEADER = Buffer.from([0xa5, 0x7b, 0x1c, 0x00]);
+export const FORMAT_VERSION = Buffer.from([0x01]);

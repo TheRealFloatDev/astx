@@ -16,7 +16,7 @@
  */
 
 import { encode } from "@msgpack/msgpack";
-import { CompiledProgram } from ".";
+import { CompiledProgram, FORMAT_VERSION, MAGIC_HEADER } from ".";
 import { ArrowFunctionToFunctionTransformer } from "./transformers/arrowFunctionToFunctionTransformer";
 import { NodeTransformer } from "./transformers/transformers";
 import * as babelParser from "@babel/parser";
@@ -218,8 +218,8 @@ export function saveToFile(program: CompiledProgram, filename: string) {
     program.valueDict,
     program.bytecode,
   ]);
-  const magic = Buffer.from([0xa5, 0x7b, 0x1c, 0x00]); // custom magic header
-  const version = Buffer.from([0x01]); // format version
+  const magic = MAGIC_HEADER; // custom magic header
+  const version = FORMAT_VERSION; // format version
   const compressed = gzipSync(encoded);
   const full = Buffer.concat([magic, version, compressed]);
   writeFileSync(filename, full);

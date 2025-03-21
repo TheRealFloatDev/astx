@@ -27,8 +27,12 @@ import { NodeTransformer } from "./transformers/transformers.js";
 import * as babelParser from "@babel/parser";
 import { gzipSync } from "zlib";
 import { writeFileSync } from "fs";
+import { ForEachToForTransformer } from "./transformers/ForEachToForLoop";
 
-const TRANSFORMERS: NodeTransformer[] = [ArrowFunctionToFunctionTransformer];
+const TRANSFORMERS: NodeTransformer[] = [
+  ArrowFunctionToFunctionTransformer,
+  ForEachToForTransformer,
+];
 
 function collectDeclaredVariables(ast: any): Set<string> {
   const declared = new Set<string>();

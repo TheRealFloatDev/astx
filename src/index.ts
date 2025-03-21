@@ -68,6 +68,7 @@ export const MINIMAL_AST_KEYS: Record<string, string[]> = {
   AwaitExpression: ["argument"],
   FunctionExpression: ["id", "params", "body"],
   SequenceExpression: ["expressions"],
+  YieldExpression: ["argument", "delegate"],
 
   // Statements
   IfStatement: ["test", "consequent", "alternate"],
@@ -79,6 +80,12 @@ export const MINIMAL_AST_KEYS: Record<string, string[]> = {
   BreakStatement: ["label"],
   ThrowStatement: ["argument"],
   SwitchStatement: ["discriminant", "cases"],
+  ForInStatement: ["left", "right", "body"],
+  DoWhileStatement: ["body", "test"],
+  TryStatement: ["block", "handler", "finalizer"],
+  LabeledStatement: ["label", "body"],
+  WithStatement: ["object", "body"],
+  EmptyStatement: [],
 
   // Literals and Identifiers
   Identifier: ["name"],
@@ -98,13 +105,17 @@ export const MINIMAL_AST_KEYS: Record<string, string[]> = {
   // Patterns
   AssignmentPattern: ["left", "right"],
   ObjectPattern: ["properties"],
+  ArrayPattern: ["elements"],
 
   // Other
   ObjectProperty: ["key", "value"],
+  ObjectMethod: ["key", "params", "body"],
   ClassBody: ["body"],
   ClassMethod: ["key", "params", "body"],
   SwitchCase: ["test", "consequent"],
   null: [],
+  CatchClause: ["param", "body"],
+  Super: [],
 };
 
 export { compile, saveToFile } from "./compiler.js";

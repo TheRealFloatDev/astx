@@ -13,7 +13,7 @@
     "test": "jest --passWithNoTests",
     "prepack": "npm run build"
   },
-  "author": "Garmingo",
+  "author": "Alexander Neitzel",
   "license": "GPL-3.0-only",
   "devDependencies": {
     "@types/jest": "^29.5.11",

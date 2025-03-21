@@ -1,4 +1,4 @@
-# npm-library-template
+# astx (Abstract Syntax Tree Executable)
 This is a template for creating a npm library.
 
 ## Installation

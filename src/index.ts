@@ -105,5 +105,5 @@ export const MINIMAL_AST_KEYS: Record<string, string[]> = {
   null: [],
 };
 
-export { compile, saveToFile } from "./compiler";
-export { loadFromFile, generateJSCode, run } from "./runtime";
+export { compile, saveToFile } from "./compiler.js";
+export { loadFromFile, generateJSCode, run } from "./runtime.js";

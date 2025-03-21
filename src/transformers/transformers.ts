@@ -83,5 +83,5 @@ export interface NodeTransformer<TNode extends t.Node = t.Node> {
   test: (node: t.Node) => boolean;
 
   // Required: Transforms the node
-  transform: (node: TNode, context: TransformContext) => t.Node;
+  transform: (node: TNode, context: TransformContext) => t.Node | null;
 }

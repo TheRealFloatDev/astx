@@ -127,6 +127,7 @@ export function compile(jsCode: string): CompiledProgram {
             if (newNode === null) {
               // Remove node if null
               path.remove();
+              break; // Stop processing this node (it's been removed)
             } else if (newNode !== path.node) {
               // Only replace if the node changed
               path.replaceWith(newNode);

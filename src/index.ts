@@ -104,3 +104,6 @@ export const MINIMAL_AST_KEYS: Record<string, string[]> = {
   SwitchCase: ["test", "consequent"],
   null: [],
 };
+
+export { compile, saveToFile } from "./compiler";
+export { loadFromFile, generateJSCode, run } from "./runtime";

@@ -30,7 +30,7 @@ import { writeFileSync } from "fs";
 import { ForEachToForTransformer } from "./transformers/ForEachToForLoop";
 import traverse from "@babel/traverse";
 
-const TRANSFORMERS: NodeTransformer[] = [
+const TRANSFORMERS: NodeTransformer<any>[] = [
   ArrowFunctionToFunctionTransformer,
   ForEachToForTransformer,
 ];

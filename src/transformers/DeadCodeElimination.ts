@@ -28,7 +28,7 @@ export const DeadCodeEliminationTransformer: NodeTransformer<t.Statement> = {
     return t.isBlockStatement(node) || t.isIfStatement(node);
   },
 
-  transform(node, _context: TransformContext): t.Statement {
+  transform(node, _context: TransformContext): t.Statement | null {
     if (t.isBlockStatement(node)) {
       const newBody: t.Statement[] = [];
 
@@ -62,7 +62,7 @@ export const DeadCodeEliminationTransformer: NodeTransformer<t.Statement> = {
           return node.alternate;
         }
         // If no alternate, just remove the whole if
-        return t.emptyStatement();
+        return null;
       }
     }
 

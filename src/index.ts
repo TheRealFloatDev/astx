@@ -14,3 +14,24 @@
  *   You should have received a copy of the GNU General Public License
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+
+/**
+ * The representation of an ASTX compiled program.
+ */
+export interface CompiledProgram {
+  /**
+   * The dictionary of expressions used in the program.
+   * The expressions are stored as strings.
+   */
+  expressionDict: string[];
+  /**
+   * The dictionary of values used in the program.
+   * The values are stored as strings.
+   */
+  valueDict: any[];
+  /**
+   * The dictionary of AST nodes used in the program.
+   * The AST nodes are stored in a custom format.
+   */
+  bytecode: any[];
+}

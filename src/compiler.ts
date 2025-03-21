@@ -123,8 +123,14 @@ export function compile(jsCode: string): CompiledProgram {
               },
               parent: path.parent,
             });
-            path.replaceWith(newNode);
-            break; // One transformer per node (optional rule)
+
+            if (newNode === null) {
+              // Remove node if null
+              path.remove();
+            } else if (newNode !== path.node) {
+              // Only replace if the node changed
+              path.replaceWith(newNode);
+            }
           }
         }
       },

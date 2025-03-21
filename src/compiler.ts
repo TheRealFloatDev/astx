@@ -15,8 +15,10 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { CompiledProgram } from ".";
 import { ArrowFunctionToFunctionTransformer } from "./transformers/arrowFunctionToFunctionTransformer";
 import { NodeTransformer } from "./transformers/transformers";
+import * as babelParser from "@babel/parser";
 
 const TRANSFORMERS: NodeTransformer[] = [ArrowFunctionToFunctionTransformer];
 
@@ -85,3 +87,124 @@ const MINIMAL_AST_KEYS: Record<string, string[]> = {
   SwitchCase: ["test", "consequent"],
   null: [],
 };
+
+function collectDeclaredVariables(ast: any): Set<string> {
+  const declared = new Set<string>();
+  function walk(node: any) {
+    if (!node || typeof node !== "object") return;
+    if (node.type === "VariableDeclarator" && node.id?.name) {
+      declared.add(node.id.name);
+    }
+    if (
+      node.type === "FunctionDeclaration" ||
+      node.type === "FunctionExpression" ||
+      node.type === "ArrowFunctionExpression"
+    ) {
+      if (node.id?.name) declared.add(node.id.name);
+      node.params?.forEach((param: any) => {
+        if (param.type === "Identifier") declared.add(param.name);
+      });
+    }
+    for (const key in node) {
+      const value = node[key];
+      if (Array.isArray(value)) value.forEach(walk);
+      else if (typeof value === "object" && value !== null) walk(value);
+    }
+  }
+  walk(ast);
+  return declared;
+}
+
+function compileJS(jsCode: string): CompiledProgram {
+  const ast = babelParser.parse(jsCode, { sourceType: "module" });
+  const valueDict: any[] = [];
+  const expressionDict: string[] = [];
+  const exprMap = new Map<string, number>();
+  const bytecode: any[] = [];
+
+  const declaredVars = collectDeclaredVariables(ast);
+  const seenVars = new Map<string, number>();
+  let varCounter = 0;
+
+  function encode(node: any): number | undefined {
+    if (!node || typeof node !== "object") return;
+
+    // Check for transformers
+    for (const transformer of TRANSFORMERS) {
+      if (transformer.nodeType === node.type && transformer.test(node)) {
+        return encode(transformer.transform(node));
+      }
+    }
+
+    // Check if type is currently unsupported
+    if (node.type && !MINIMAL_AST_KEYS[node.type]) {
+      console.error("Unsupported node type:", node.type);
+
+      process.exit(1);
+    }
+
+    const type = node.type || "null";
+    let typeIndex = exprMap.get(type);
+    if (typeIndex === undefined) {
+      typeIndex = expressionDict.length;
+      exprMap.set(type, typeIndex);
+      expressionDict.push(type);
+    }
+
+    const keys = MINIMAL_AST_KEYS[type] || [];
+    const values: any[] = [];
+
+    if (type === "TemplateElement") {
+      let index = valueDict.findIndex(
+        (v) => v && v.raw === node.value.raw && v.cooked === node.value.cooked
+      );
+      if (index === -1) {
+        index = valueDict.length;
+        valueDict.push(node.value);
+      }
+      values.push(index, node.tail);
+      const nodeArr = [typeIndex, ...values];
+      bytecode.push(nodeArr);
+      return bytecode.length - 1;
+    }
+
+    for (const key of keys) {
+      const value = node[key];
+
+      if (key === "name" && type === "Identifier" && declaredVars.has(value)) {
+        if (!seenVars.has(value)) {
+          seenVars.set(value, varCounter++);
+        }
+        values.push(seenVars.get(value));
+      } else if (
+        key === "value" &&
+        (type === "Literal" || type.endsWith("Literal"))
+      ) {
+        let index = valueDict.indexOf(value);
+        if (index === -1) {
+          index = valueDict.length;
+          valueDict.push(value);
+        }
+        values.push(index);
+      } else if (Array.isArray(value)) {
+        values.push(value.map((v) => (typeof v === "object" ? encode(v) : v)));
+      } else if (typeof value === "object" && value !== null) {
+        values.push(encode(value));
+      } else {
+        values.push(value);
+      }
+    }
+
+    const nodeArr = [typeIndex, ...values];
+    bytecode.push(nodeArr);
+    return bytecode.length - 1;
+  }
+
+  encode(ast.program); // Skip the File wrapper
+
+  return {
+    expressionDict,
+    valueDict,
+    bytecode,
+  };
+}

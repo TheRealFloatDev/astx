@@ -5,7 +5,7 @@ The goal is to drastically reduce the size of JS files by compiling them to a bi
 This is not a replacement for minification or obfuscation, but because of its binary format it is harder to reverse engineer similar to other compiled languages.
 
 ASTX is a binary format that represents an Abstract Syntax Tree (AST) of a JavaScript program.
-The AST is serialized to a binary format that can be executed by the ASTX runtime.
+The AST is serialized to a binary format that can be executed from within **any** JavaScript runtime using this library.
 That means that every JavaScript program can be compiled to an ASTX binary file and executed by the ASTX runtime library from within a JavaScript environment.
 
 This project is inspired by [WebAssembly](https://webassembly.org/), but it is not meant to be a replacement for it.

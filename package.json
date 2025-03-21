@@ -1,7 +1,7 @@
 {
-  "name": "npm-library-template",
+  "name": "astx",
   "version": "1.0.0",
-  "description": "A simple base template to be used by various npm packages",
+  "description": "Compiler & Runtime library for a tiny JS AST based binary file format",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -22,5 +22,10 @@
     "ts-node": "^10.9.2",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@babel/generator": "^7.26.10",
+    "@babel/parser": "^7.26.10",
+    "@msgpack/msgpack": "^3.1.1"
   }
 }

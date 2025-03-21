@@ -16,44 +16,38 @@
  */
 
 import * as t from "@babel/types";
-import traverse from "@babel/traverse";
 import { NodeTransformer, TransformContext } from "./transformers";
+import { NodePath } from "@babel/traverse";
 
 export const UnusedDeclarationEliminationTransformer: NodeTransformer<t.Program> =
   {
     key: "unused-declaration-elimination",
     displayName: "Remove Unused Variables and Functions",
     nodeTypes: ["Program"],
-    phases: ["post"], // Run after everything else
+    phases: ["post"],
 
     test(node): node is t.Program {
       return t.isProgram(node);
     },
 
-    transform(node, _context: TransformContext): t.Node {
+    transform(node, context: TransformContext): t.Program {
+      const programPath = context.path as NodePath<t.Program>;
+      const bindings = programPath.scope.getAllBindings();
       const bindingsToRemove = new Set<string>();
 
-      traverse(node, {
-        Program(path) {
-          const bindings = path.scope.getAllBindings();
-
-          for (const [name, binding] of Object.entries(bindings)) {
-            if (
-              !binding.referenced && // <-- this is the magic
-              (t.isVariableDeclarator(binding.path.node) ||
-                t.isFunctionDeclaration(binding.path.node))
-            ) {
-              bindingsToRemove.add(name);
-            }
-          }
-        },
-      });
+      for (const [name, binding] of Object.entries(bindings)) {
+        if (
+          !binding.referenced &&
+          (t.isVariableDeclarator(binding.path.node) ||
+            t.isFunctionDeclaration(binding.path.node))
+        ) {
+          bindingsToRemove.add(name);
+        }
+      }
 
       if (bindingsToRemove.size === 0) return node;
 
-      // Create a filtered body without the unused bindings
       const newBody = node.body.filter((stmt) => {
-        // Handle: function foo() {}
         if (
           t.isFunctionDeclaration(stmt) &&
           stmt.id &&
@@ -62,17 +56,12 @@ export const UnusedDeclarationEliminationTransformer: NodeTransformer<t.Program>
           return false;
         }
 
-        // Handle: const foo = ...
         if (t.isVariableDeclaration(stmt)) {
-          const remainingDeclarators = stmt.declarations.filter((decl) => {
-            return (
-              t.isIdentifier(decl.id) && !bindingsToRemove.has(decl.id.name)
-            );
-          });
-
-          if (remainingDeclarators.length === 0) return false;
-
-          stmt.declarations = remainingDeclarators;
+          stmt.declarations = stmt.declarations.filter(
+            (decl) =>
+              !t.isIdentifier(decl.id) || !bindingsToRemove.has(decl.id.name)
+          );
+          return stmt.declarations.length > 0;
         }
 
         return true;

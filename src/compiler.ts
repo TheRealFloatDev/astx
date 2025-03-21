@@ -32,6 +32,7 @@ import traverse from "@babel/traverse";
 import { ConstantFoldingTransformer } from "./transformers/ConstantFolding";
 import { DeadCodeEliminationTransformer } from "./transformers/DeadCodeElimination";
 import { PowToMultiplyTransformer } from "./transformers/PowToMultiply";
+import { LogicalSimplificationTransformer } from "./transformers/LogicalSimplification";
 
 const TRANSFORMERS: NodeTransformer<any>[] = [
   ArrowFunctionToFunctionTransformer,
@@ -39,6 +40,7 @@ const TRANSFORMERS: NodeTransformer<any>[] = [
   ConstantFoldingTransformer,
   DeadCodeEliminationTransformer,
   PowToMultiplyTransformer,
+  LogicalSimplificationTransformer,
 ];
 
 function collectDeclaredVariables(ast: any): Set<string> {

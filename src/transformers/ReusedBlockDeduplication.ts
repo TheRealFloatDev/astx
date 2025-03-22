@@ -19,7 +19,7 @@ import * as t from "@babel/types";
 import { NodeTransformer, TransformContext } from "./transformers";
 import { traverseFast } from "@babel/types";
 
-const MIN_BLOCK_SIZE = 5;
+const MIN_BLOCK_SIZE = 10;
 
 // This map tracks all seen reusable blocks by hash → fnId + block
 const blockHashMap = new Map<
@@ -28,6 +28,10 @@ const blockHashMap = new Map<
 >();
 
 const DATA_KEY = "reused-block-dedup.functions";
+
+function structuredCloneLike<T>(node: T): T {
+  return JSON.parse(JSON.stringify(node));
+}
 
 export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
   key: "reused-block-dedup",
@@ -92,7 +96,7 @@ export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
         const fnDecl = t.functionDeclaration(
           entry.fnId,
           [],
-          t.blockStatement(entry.block.map((s) => t.cloneNode(s)))
+          t.blockStatement(entry.block.map((s) => structuredCloneLike(s)))
         );
         context.sharedData[DATA_KEY]?.push(fnDecl);
       }

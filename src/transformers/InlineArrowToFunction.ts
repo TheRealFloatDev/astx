@@ -16,7 +16,7 @@
  */
 
 import * as t from "@babel/types";
-import { NodeTransformer, TransformContext } from "./transformers";
+import { NodeTransformer } from "./transformers";
 
 export const InlineArrowToFunctionTransformer: NodeTransformer<t.ArrowFunctionExpression> =
   {

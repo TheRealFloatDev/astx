@@ -159,6 +159,7 @@ export function compile(jsCode: string): CompiledProgram {
               if (result === null) {
                 // Remove node from AST
                 path.remove();
+                break; // Stop applying transformers to this node (it's gone)
               } else if (Array.isArray(result)) {
                 // Replace node with multiple nodes
                 path.replaceWithMultiple(result);

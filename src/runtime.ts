@@ -252,7 +252,14 @@ export function run(compiled: CompiledProgram, options: RunOptions = {}) {
     }
 
     const directory = inject.__dirname ?? process.cwd();
-    const scopedRequire = createRequire(directory);
+    const scopedRequire = (modulePath: string) => {
+      if (path.isAbsolute(modulePath) || !modulePath.startsWith(".")) {
+        return require(modulePath); // absolute path or bare module
+      }
+
+      const resolved = path.resolve(directory, modulePath); // relative
+      return require(resolved);
+    };
 
     return (async () => {
       const { default: vm } = await import("vm"); // 👈 dynamic import

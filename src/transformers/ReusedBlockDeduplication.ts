@@ -28,6 +28,8 @@ const blockHashMap = new Map<
   { fnId: t.Identifier; block: t.Statement[] }
 >();
 
+const DATA_KEY = "reused-block-dedup.functions";
+
 export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
   key: "reused-block-dedup",
   displayName: "Deduplicate Reused Statement Blocks",
@@ -37,15 +39,15 @@ export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
   test: () => true,
 
   transform(node, context: TransformContext): t.Node {
-    if (!context.sharedData["dedupHoistedFunctions"]) {
-      context.sharedData["dedupHoistedFunctions"] = [];
+    if (!context.sharedData[DATA_KEY]) {
+      context.sharedData[DATA_KEY] = [];
     }
 
     // Inject hoisted functions at the top of the program
     if (t.isProgram(node) && context.phase === "post") {
-      if (context.sharedData["dedupHoistedFunctions"]?.length) {
-        node.body.unshift(...context.sharedData["dedupHoistedFunctions"]);
-        context.sharedData["dedupHoistedFunctions"].length = 0; // Reset after injection
+      if (context.sharedData[DATA_KEY]?.length) {
+        node.body.unshift(...context.sharedData[DATA_KEY]);
+        context.sharedData[DATA_KEY].length = 0; // Reset after injection
       }
       return node;
     }
@@ -73,7 +75,7 @@ export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
       }
 
       // Hoist function only once
-      const alreadyHoisted = context.sharedData["dedupHoistedFunctions"]?.some(
+      const alreadyHoisted = context.sharedData[DATA_KEY]?.some(
         (fn: t.FunctionDeclaration) => fn.id?.name === entry!.fnId.name
       );
 
@@ -83,7 +85,7 @@ export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
           [],
           t.blockStatement(entry.block.map((s) => t.cloneNode(s, true)))
         );
-        context.sharedData["dedupHoistedFunctions"]?.push(fnDecl);
+        context.sharedData[DATA_KEY]?.push(fnDecl);
       }
 
       // Replace the block with a call to the shared function

@@ -202,6 +202,12 @@ interface RunOptions {
   inject?: Record<string, any>;
 }
 
+/**
+ * Runs a compiled program.
+ * @param compiled The compiled program
+ * @param options The run options
+ * @returns The result of the program (a Promise in VM mode)
+ */
 export function run(compiled: CompiledProgram, options: RunOptions = {}) {
   const code = generateJSCode(compiled);
   const mode: RunMode = options.mode ?? "eval";

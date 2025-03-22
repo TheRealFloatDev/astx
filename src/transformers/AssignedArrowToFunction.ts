@@ -1,94 +1,92 @@
-/*
- *   Copyright (c) 2025 Alexander Neitzel
-
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
-
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
-
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 import * as t from "@babel/types";
-import traverse from "@babel/traverse";
 import { NodeTransformer, TransformContext } from "./transformers";
+import { traverseFast } from "@babel/types";
 
-export const AssignedArrowToFunctionTransformer: NodeTransformer<t.VariableDeclarator> =
+export const AssignedArrowToFunctionTransformer: NodeTransformer<t.VariableDeclaration> =
   {
     key: "assigned-arrow-to-function",
-    displayName: "Arrow to IIFE (Assignment)",
-    nodeTypes: ["VariableDeclarator"],
+    displayName: "Arrow → Function (Assigned)",
+    nodeTypes: ["VariableDeclaration"],
     phases: ["pre"],
 
-    test(node): node is t.VariableDeclarator {
-      const tempNode = node as t.VariableDeclarator;
-
-      return t.isArrowFunctionExpression(tempNode.init);
+    test(node): node is t.VariableDeclaration {
+      if (!t.isVariableDeclaration(node)) return false;
+      return node.declarations.some((decl) =>
+        t.isArrowFunctionExpression(decl.init)
+      );
     },
 
-    transform(node, context: TransformContext): t.Node {
-      const arrow = node.init as t.ArrowFunctionExpression;
+    transform(node, context: TransformContext): t.Node | null {
+      const preHoisted: t.VariableDeclaration[] = [];
+      const newDeclarations: t.VariableDeclarator[] = [];
 
-      let usesThis = false;
-      let usesArgs = false;
+      for (const decl of node.declarations) {
+        const init = decl.init;
 
-      traverse(
-        arrow.body,
-        {
-          ThisExpression() {
-            usesThis = true;
-          },
-          Identifier(p) {
-            if (p.node.name === "arguments") {
-              usesArgs = true;
-            }
-          },
-        },
-        context.path.scope
-      );
+        if (!t.isArrowFunctionExpression(init)) {
+          newDeclarations.push(decl);
+          continue;
+        }
 
-      const thisId = usesThis ? context.helpers.generateUid("this") : undefined;
-      const argsId = usesArgs ? context.helpers.generateUid("args") : undefined;
+        let usesThis = false;
+        let usesArgs = false;
 
-      const body = t.isBlockStatement(arrow.body)
-        ? arrow.body
-        : t.blockStatement([t.returnStatement(arrow.body)]);
+        traverseFast(init.body, (n: t.Node) => {
+          if (t.isThisExpression(n)) usesThis = true;
+          if (t.isIdentifier(n, { name: "arguments" })) usesArgs = true;
+        });
 
-      const rewrittenBody = rewriteLexicalReferences(body, thisId, argsId);
+        const thisId = usesThis
+          ? context.helpers.generateUid("this")
+          : undefined;
+        const argsId = usesArgs
+          ? context.helpers.generateUid("args")
+          : undefined;
 
-      const captured: t.VariableDeclarator[] = [];
-      if (thisId)
-        captured.push(t.variableDeclarator(thisId, t.thisExpression()));
-      if (argsId)
-        captured.push(t.variableDeclarator(argsId, t.identifier("arguments")));
+        const originalBody = t.isBlockStatement(init.body)
+          ? init.body
+          : t.blockStatement([t.returnStatement(init.body)]);
 
-      const fnExpr = t.functionExpression(
-        null,
-        arrow.params,
-        rewrittenBody,
-        arrow.generator ?? false,
-        arrow.async ?? false
-      );
+        const rewrittenBody = rewriteLexicalReferences(
+          originalBody,
+          thisId,
+          argsId
+        );
 
-      const iife = t.callExpression(
-        t.arrowFunctionExpression(
-          [],
-          t.blockStatement([
-            t.variableDeclaration("const", captured),
-            t.returnStatement(fnExpr),
-          ])
-        ),
-        []
-      );
+        const fnExpr = t.functionExpression(
+          null,
+          init.params,
+          rewrittenBody,
+          init.generator ?? false,
+          init.async ?? false
+        );
 
-      node.init = iife;
-      return node;
+        if (thisId) {
+          preHoisted.push(
+            t.variableDeclaration("const", [
+              t.variableDeclarator(thisId, t.thisExpression()),
+            ])
+          );
+        }
+
+        if (argsId) {
+          preHoisted.push(
+            t.variableDeclaration("const", [
+              t.variableDeclarator(argsId, t.identifier("arguments")),
+            ])
+          );
+        }
+
+        newDeclarations.push({
+          ...decl,
+          init: fnExpr,
+        });
+      }
+
+      return t.blockStatement([
+        ...preHoisted,
+        t.variableDeclaration(node.kind, newDeclarations),
+      ]);
     },
   };
 
@@ -99,15 +97,13 @@ function rewriteLexicalReferences(
 ): t.BlockStatement {
   const cloned = t.cloneNode(block, true) as t.BlockStatement;
 
-  traverse(cloned, {
-    ThisExpression(path) {
-      if (thisId) path.replaceWith(t.identifier(thisId.name));
-    },
-    Identifier(path) {
-      if (argsId && path.node.name === "arguments") {
-        path.replaceWith(t.identifier(argsId.name));
-      }
-    },
+  traverseFast(cloned, (node: t.Node) => {
+    if (thisId && t.isThisExpression(node)) {
+      Object.assign(node, t.identifier(thisId.name));
+    }
+    if (argsId && t.isIdentifier(node, { name: "arguments" })) {
+      Object.assign(node, t.identifier(argsId.name));
+    }
   });
 
   return cloned;

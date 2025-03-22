@@ -1,25 +1,11 @@
-/*
- *   Copyright (c) 2025 Alexander Neitzel
-
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
-
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
-
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 import * as t from "@babel/types";
 import { NodeTransformer, TransformContext } from "./transformers";
 import traverse from "@babel/traverse";
+import { traverseFast } from "@babel/types";
 
-const BLOCK_SIZE = 5;
+const MIN_BLOCK_SIZE = 5;
+const MAX_BLOCK_SIZE = 10;
+
 const HASH_KEY = "dedupBlock.hashes";
 const FN_KEY = "dedupBlock.functions";
 
@@ -28,69 +14,76 @@ export const DeduplicateBlocksTransformer: NodeTransformer<t.Program> = {
   displayName: "Deduplicate Reused Statement Blocks",
   nodeTypes: ["Program"],
   phases: ["post"],
-
   test: () => true,
 
   transform(node, context) {
-    // Init shared data
     const blockHashes: Map<
       string,
       { fnId: t.Identifier; block: t.Statement[]; count: number }
     > = (context.sharedData[HASH_KEY] ??= new Map());
+
     const hoisted: t.FunctionDeclaration[] = [];
 
-    // First pass: collect all repeated blocks
+    // Pass 1: collect hashes
     traverse(node, {
       BlockStatement(path) {
         const stmts = path.node.body;
-        for (let i = 0; i <= stmts.length - BLOCK_SIZE; i++) {
-          const slice = stmts.slice(i, i + BLOCK_SIZE);
-          if (!isSafe(slice)) continue;
+        for (let size = MAX_BLOCK_SIZE; size >= MIN_BLOCK_SIZE; size--) {
+          for (let i = 0; i <= stmts.length - size; i++) {
+            const slice = stmts.slice(i, i + size);
+            if (!isSafe(slice)) continue;
 
-          const hash = hashBlock(slice);
-          let entry = blockHashes.get(hash);
+            const hash = hashBlock(slice);
+            let entry = blockHashes.get(hash);
 
-          if (!entry) {
-            const fnId = context.helpers.generateUid("dedup_block");
-            entry = { fnId, block: slice.map((s) => t.cloneNode(s)), count: 0 };
-            blockHashes.set(hash, entry);
+            if (!entry) {
+              const fnId = context.helpers.generateUid("dedup_block");
+              const clonedBlock = slice.map((s) => t.cloneNode(s));
+              entry = { fnId, block: clonedBlock, count: 0 };
+              blockHashes.set(hash, entry);
+            }
+
+            entry.count++;
           }
-
-          entry.count++;
         }
       },
     });
 
-    // Second pass: replace and hoist
+    // Pass 2: replace and hoist
     traverse(node, {
       BlockStatement(path) {
         const stmts = path.node.body;
-        for (let i = 0; i <= stmts.length - BLOCK_SIZE; i++) {
-          const slice = stmts.slice(i, i + BLOCK_SIZE);
-          const hash = hashBlock(slice);
-          const entry = blockHashes.get(hash);
-          if (!entry || entry.count < 2) continue;
 
-          // Hoist if not yet hoisted
-          if (!hoisted.find((fn) => fn.id?.name === entry!.fnId.name)) {
-            hoisted.push(
-              t.functionDeclaration(
-                entry.fnId,
-                [],
-                t.blockStatement(entry.block)
-              )
+        for (let size = MAX_BLOCK_SIZE; size >= MIN_BLOCK_SIZE; size--) {
+          for (let i = 0; i <= stmts.length - size; i++) {
+            const slice = stmts.slice(i, i + size);
+            if (!isSafe(slice)) continue;
+
+            const hash = hashBlock(slice);
+            const entry = blockHashes.get(hash);
+            if (!entry || entry.count < 2) continue;
+
+            // Hoist if not yet hoisted
+            if (!hoisted.find((fn) => fn.id?.name === entry.fnId.name)) {
+              hoisted.push(
+                t.functionDeclaration(
+                  entry.fnId,
+                  [],
+                  t.blockStatement(entry.block)
+                )
+              );
+            }
+
+            // Replace block with function call
+            stmts.splice(
+              i,
+              size,
+              t.expressionStatement(t.callExpression(entry.fnId, []))
             );
+
+            i += size - 1; // skip replaced area
+            break; // one dedup per block
           }
-
-          // Replace block with call
-          slice.splice(
-            0,
-            BLOCK_SIZE,
-            t.expressionStatement(t.callExpression(entry.fnId, []))
-          );
-
-          path.node.body.splice(i, BLOCK_SIZE, slice[0]);
-          i += BLOCK_SIZE - 1; // Skip over replaced block
         }
       },
     });
@@ -102,6 +95,35 @@ export const DeduplicateBlocksTransformer: NodeTransformer<t.Program> = {
 };
 
 // Helpers
+
+function isSafe(stmts: t.Statement[]): boolean {
+  return stmts.every((stmt) => {
+    return (
+      !t.isReturnStatement(stmt) &&
+      !t.isThrowStatement(stmt) &&
+      !t.isBreakStatement(stmt) &&
+      !t.isContinueStatement(stmt) &&
+      !usesLexicalContext(stmt)
+    );
+  });
+}
+
+function usesLexicalContext(node: t.Node): boolean {
+  let found = false;
+  traverseFast(node, (n) => {
+    if (
+      t.isThisExpression(n) ||
+      t.isIdentifier(n, { name: "arguments" }) ||
+      t.isSuper(n) ||
+      (t.isMetaProperty(n) &&
+        t.isIdentifier(n.meta, { name: "new" }) &&
+        t.isIdentifier(n.property, { name: "target" }))
+    ) {
+      found = true;
+    }
+  });
+  return found;
+}
 
 function hashBlock(stmts: t.Statement[]): string {
   return stmts.map((s) => s.type + "-" + hashShallow(s)).join(";");
@@ -120,14 +142,4 @@ function hashShallow(node: t.Node): string {
       .join(",");
   }
   return node.type;
-}
-
-function isSafe(stmts: t.Statement[]): boolean {
-  return stmts.every(
-    (stmt) =>
-      !t.isReturnStatement(stmt) &&
-      !t.isThrowStatement(stmt) &&
-      !t.isBreakStatement(stmt) &&
-      !t.isContinueStatement(stmt)
-  );
 }

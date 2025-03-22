@@ -143,7 +143,7 @@ export function compile(jsCode: string): CompiledProgram {
           const matchesType =
             !transformer.nodeTypes ||
             transformer.nodeTypes.includes(path.node.type);
-          const passesTest = transformer.test(path.node);
+          const passesTest = transformer.test(path.node, context);
 
           if (matchesPhase && matchesType && passesTest) {
             console.log(

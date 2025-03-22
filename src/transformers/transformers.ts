@@ -89,7 +89,7 @@ export interface NodeTransformer<TNode extends t.Node = t.Node> {
   phases?: Phase[];
 
   // Required: Checks if this transformer should run on a given node
-  test: (node: t.Node) => boolean;
+  test: (node: t.Node, context: TransformContext) => boolean;
 
   // Required: Transforms the node
   transform: (

@@ -132,6 +132,11 @@ export function compile(jsCode: string): CompiledProgram {
         };
 
         for (const transformer of TRANSFORMERS) {
+          if (!path.node) {
+            // Skip removed nodes
+            break;
+          }
+
           const matchesPhase = transformer.phases
             ? transformer.phases.includes(phase)
             : true;

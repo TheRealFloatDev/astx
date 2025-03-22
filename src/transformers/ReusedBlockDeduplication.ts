@@ -19,7 +19,8 @@ import * as t from "@babel/types";
 import { NodeTransformer, TransformContext } from "./transformers";
 import { traverseFast } from "@babel/types";
 
-const MIN_BLOCK_SIZE = 10;
+const MIN_BLOCK_SIZE = 15;
+const MAX_ATTEMPTS = 10;
 
 // This map tracks all seen reusable blocks by hash → fnId + block
 const blockHashMap = new Map<
@@ -73,7 +74,11 @@ export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
     const original = node.body;
     const updated: t.Statement[] = [...original];
 
-    for (let i = 0; i <= original.length - MIN_BLOCK_SIZE; i++) {
+    for (
+      let i = 0;
+      i <= original.length - MIN_BLOCK_SIZE && i < MAX_ATTEMPTS;
+      i++
+    ) {
       const slice = original.slice(i, i + MIN_BLOCK_SIZE);
       if (!isSafeBlock(slice)) continue;
 

@@ -130,16 +130,41 @@ function hashBlock(stmts: t.Statement[]): string {
 }
 
 function hashShallow(node: t.Node): string {
-  if (t.isExpressionStatement(node) && t.isCallExpression(node.expression)) {
-    const callee = node.expression.callee;
-    return `call:${t.isIdentifier(callee) ? callee.name : "?"}`;
+  if (t.isExpressionStatement(node)) {
+    const expr = node.expression;
+    if (t.isCallExpression(expr)) {
+      const callee = t.isIdentifier(expr.callee)
+        ? expr.callee.name
+        : expr.callee.type;
+      const args = expr.arguments
+        .map((arg) => {
+          if (t.isLiteral(arg)) return `lit:${(arg as any).value}`;
+          if (t.isIdentifier(arg)) return `id:${arg.name}`;
+          return arg.type;
+        })
+        .join(",");
+      return `call:${callee}(${args})`;
+    }
+    if (t.isAssignmentExpression(expr)) {
+      return `assign:${hashShallow(expr.left)}=${hashShallow(expr.right)}`;
+    }
   }
+
   if (t.isVariableDeclaration(node)) {
     return node.declarations
-      .map((d) =>
-        t.isIdentifier(d.id) ? `${d.id.name}:${d.init?.type ?? "?"}` : "?"
-      )
+      .map((d) => {
+        const name = t.isIdentifier(d.id) ? d.id.name : "pattern";
+        const init = d.init
+          ? t.isLiteral(d.init)
+            ? `lit:${(d.init as any).value}`
+            : t.isIdentifier(d.init)
+            ? `id:${d.init.name}`
+            : d.init.type
+          : "undefined";
+        return `${name}=${init}`;
+      })
       .join(",");
   }
+
   return node.type;
 }

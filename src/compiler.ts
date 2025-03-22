@@ -104,7 +104,11 @@ export function compile(jsCode: string): CompiledProgram {
             console.log(
               `[ASTX-Compiler][${phase.toUpperCase()}] Applying transformer "${
                 transformer.displayName
-              }" (${transformer.key})`
+              }" (${transformer.key}) to node: ${
+                path.node.start ?? "unknown"
+              } (Type: ${path.node.type}) at line ${
+                path.node.loc?.start.line ?? "unknown"
+              }`
             );
 
             try {

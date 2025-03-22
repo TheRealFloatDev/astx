@@ -101,42 +101,56 @@ export function compile(jsCode: string): CompiledProgram {
           const passesTest = transformer.test(path.node);
 
           if (matchesPhase && matchesType && passesTest) {
-            const newNode = transformer.transform(path.node, {
-              ast: ast,
-              declaredVars: declaredVars,
-              path: path,
-              helpers: {
-                generateUid(base) {
-                  const identifier = path.scope.generateUidIdentifier(base);
-                  declaredVars.add(identifier.name);
-                  return identifier;
-                },
-                replaceNode(from, to) {
-                  traverse(ast, {
-                    enter(path) {
-                      if (path.node === from) {
-                        path.replaceWith(to);
-                      }
-                    },
-                  });
-                },
-                insertBefore(node) {
-                  path.insertBefore(node);
-                },
-                insertAfter(node) {
-                  path.insertAfter(node);
-                },
-              },
-              parent: path.parent,
-            });
+            console.log(
+              `[ASTX-Compiler][${phase.toUpperCase()}] Applying transformer "${
+                transformer.displayName
+              }" (${transformer.key})`
+            );
 
-            if (newNode === null) {
-              // Remove node if null
-              path.remove();
-              break; // Stop processing this node (it's been removed)
-            } else if (newNode !== path.node) {
-              // Only replace if the node changed
-              path.replaceWith(newNode);
+            try {
+              const newNode = transformer.transform(path.node, {
+                ast: ast,
+                declaredVars: declaredVars,
+                path: path,
+                helpers: {
+                  generateUid(base) {
+                    const identifier = path.scope.generateUidIdentifier(base);
+                    declaredVars.add(identifier.name);
+                    return identifier;
+                  },
+                  replaceNode(from, to) {
+                    traverse(ast, {
+                      enter(path) {
+                        if (path.node === from) {
+                          path.replaceWith(to);
+                        }
+                      },
+                    });
+                  },
+                  insertBefore(node) {
+                    path.insertBefore(node);
+                  },
+                  insertAfter(node) {
+                    path.insertAfter(node);
+                  },
+                },
+                parent: path.parent,
+              });
+
+              if (newNode === null) {
+                // Remove node if null
+                path.remove();
+                break; // Stop processing this node (it's been removed)
+              } else if (newNode !== path.node) {
+                // Only replace if the node changed
+                path.replaceWith(newNode);
+              }
+            } catch (e) {
+              console.warn(
+                `[ASTX-Compiler][${phase.toUpperCase()}] Transformer "${
+                  transformer.displayName
+                }" (${transformer.key}) failed: ${e}`
+              );
             }
           }
         }

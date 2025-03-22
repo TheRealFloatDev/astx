@@ -47,7 +47,7 @@ export const MINIMAL_AST_KEYS: Record<string, string[]> = {
   // Declarations
   VariableDeclaration: ["declarations", "kind"],
   VariableDeclarator: ["id", "init"],
-  FunctionDeclaration: ["id", "params", "body"],
+  FunctionDeclaration: ["id", "params", "body", "generator", "async"],
 
   // Expressions
   BinaryExpression: ["left", "operator", "right"],
@@ -55,7 +55,13 @@ export const MINIMAL_AST_KEYS: Record<string, string[]> = {
   AssignmentExpression: ["left", "operator", "right"],
   CallExpression: ["callee", "arguments"],
   MemberExpression: ["object", "property", "computed"],
-  ArrowFunctionExpression: ["params", "body", "expression"],
+  ArrowFunctionExpression: [
+    "params",
+    "body",
+    "expression",
+    "generator",
+    "async",
+  ],
   ExpressionStatement: ["expression"],
   NewExpression: ["callee", "arguments"],
   UnaryExpression: ["operator", "argument", "prefix"],
@@ -66,7 +72,7 @@ export const MINIMAL_AST_KEYS: Record<string, string[]> = {
   ClassExpression: ["id", "superClass", "body"],
   ThisExpression: [],
   AwaitExpression: ["argument"],
-  FunctionExpression: ["id", "params", "body"],
+  FunctionExpression: ["id", "params", "body", "generator", "async"],
   SequenceExpression: ["expressions"],
   YieldExpression: ["argument", "delegate"],
 

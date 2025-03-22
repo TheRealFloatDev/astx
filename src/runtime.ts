@@ -251,14 +251,15 @@ export function run(compiled: CompiledProgram, options: RunOptions = {}) {
       throw new Error("VM mode is only supported in Node.js environments.");
     }
 
-    const scopedRequire = createRequire(__filename);
+    const directory = inject.__dirname ?? process.cwd();
+    const scopedRequire = createRequire(directory);
 
     return (async () => {
       const { default: vm } = await import("vm"); // 👈 dynamic import
       const vmContext = vm.createContext({
+        __dirname: directory,
+        __filename: path.join(directory, "index.js"), // default filename
         ...context,
-        __dirname: process.cwd(),
-        __filename: path.join(process.cwd(), "runtime.js"), // dummy filename
         require: scopedRequire,
       });
       const script = new vm.Script(code);

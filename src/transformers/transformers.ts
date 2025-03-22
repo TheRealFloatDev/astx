@@ -26,6 +26,10 @@ export interface TransformContext {
    */
   ast: t.File;
   /**
+   * The current phase of the transformer
+   */
+  phase: Phase;
+  /**
    * The parent node of the current node
    */
   parent?: t.Node;

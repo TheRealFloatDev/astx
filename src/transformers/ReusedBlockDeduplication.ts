@@ -1,3 +1,20 @@
+/*
+ *   Copyright (c) 2025 Alexander Neitzel
+
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 import * as t from "@babel/types";
 import { NodeTransformer, TransformContext } from "./transformers";
 import generate from "@babel/generator";
@@ -20,11 +37,20 @@ export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
   test: () => true,
 
   transform(node, context: TransformContext): t.Node {
+    if (!context.sharedData["dedupHoistedFunctions"]) {
+      context.sharedData["dedupHoistedFunctions"] = [];
+    }
+
     // Inject hoisted functions at the top of the program
     if (t.isProgram(node) && context.phase === "post") {
-      if (context.hoistedFunctions?.length) {
-        node.body.unshift(...context.hoistedFunctions);
-        context.hoistedFunctions.length = 0; // Reset after injection
+      console.log(
+        "dedupHoistedFunctions",
+        context.sharedData["dedupHoistedFunctions"]
+      );
+
+      if (context.sharedData["dedupHoistedFunctions"]?.length) {
+        node.body.unshift(...context.sharedData["dedupHoistedFunctions"]);
+        context.sharedData["dedupHoistedFunctions"].length = 0; // Reset after injection
       }
       return node;
     }
@@ -52,7 +78,7 @@ export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
       }
 
       // Hoist function only once
-      const alreadyHoisted = context.hoistedFunctions?.some(
+      const alreadyHoisted = context.sharedData["dedupHoistedFunctions"]?.some(
         (fn: t.FunctionDeclaration) => fn.id?.name === entry!.fnId.name
       );
 
@@ -62,7 +88,11 @@ export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
           [],
           t.blockStatement(entry.block.map((s) => t.cloneNode(s, true)))
         );
-        context.hoistedFunctions?.push(fnDecl);
+        context.sharedData["dedupHoistedFunctions"]?.push(fnDecl);
+        console.log(
+          "length",
+          context.sharedData["dedupHoistedFunctions"]?.length
+        );
       }
 
       // Replace the block with a call to the shared function

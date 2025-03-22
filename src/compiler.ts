@@ -105,9 +105,11 @@ export function compile(jsCode: string): CompiledProgram {
               `[ASTX-Compiler][${phase.toUpperCase()}] Applying transformer "${
                 transformer.displayName
               }" (${transformer.key}) to node: ${
-                path.node.start ?? "unknown"
-              } (Type: ${path.node.type}) at line ${
-                path.node.loc?.start.line ?? "unknown"
+                path.node.start ?? "Generated Node"
+              } (Type: ${path.node.type}) ${
+                path.node.loc?.start.line
+                  ? `at line ${path.node.loc?.start.line}`
+                  : "- Not in original source"
               }`
             );
 

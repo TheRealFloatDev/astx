@@ -52,7 +52,7 @@ const TRANSFORMERS: NodeTransformer<any>[] = [
   ForOfToIndexedTransformer,
   InlineArrowToFunctionTransformer,
   AssignedArrowToFunctionTransformer,
-  DeduplicateBlocksTransformer,
+  //DeduplicateBlocksTransformer, // To be replaced with Parametric Block Deduplication
 ];
 
 function collectDeclaredVariables(ast: any): Set<string> {

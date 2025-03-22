@@ -43,11 +43,6 @@ export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
 
     // Inject hoisted functions at the top of the program
     if (t.isProgram(node) && context.phase === "post") {
-      console.log(
-        "dedupHoistedFunctions",
-        context.sharedData["dedupHoistedFunctions"]
-      );
-
       if (context.sharedData["dedupHoistedFunctions"]?.length) {
         node.body.unshift(...context.sharedData["dedupHoistedFunctions"]);
         context.sharedData["dedupHoistedFunctions"].length = 0; // Reset after injection
@@ -89,10 +84,6 @@ export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
           t.blockStatement(entry.block.map((s) => t.cloneNode(s, true)))
         );
         context.sharedData["dedupHoistedFunctions"]?.push(fnDecl);
-        console.log(
-          "length",
-          context.sharedData["dedupHoistedFunctions"]?.length
-        );
       }
 
       // Replace the block with a call to the shared function

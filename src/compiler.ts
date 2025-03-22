@@ -22,7 +22,6 @@ import {
   MAGIC_HEADER,
   MINIMAL_AST_KEYS,
 } from ".";
-import { ArrowFunctionToFunctionTransformer } from "./transformers/ArrowFunctionToFunctionTransformer.js";
 import { NodeTransformer, Phase } from "./transformers/transformers.js";
 import * as babelParser from "@babel/parser";
 import { gzipSync } from "zlib";
@@ -35,9 +34,10 @@ import { PowToMultiplyTransformer } from "./transformers/PowToMultiply";
 import { LogicalSimplificationTransformer } from "./transformers/LogicalSimplification";
 import { HoistArrayLengthTransformer } from "./transformers/HoistArrayLength";
 import { ForOfToIndexedTransformer } from "./transformers/ForOfToIndexed";
+import { InlineArrowToFunctionTransformer } from "./transformers/InlineArrowToFunction";
+import { AssignedArrowToFunctionTransformer } from "./transformers/AssignedArrowToFunction";
 
 const TRANSFORMERS: NodeTransformer<any>[] = [
-  ArrowFunctionToFunctionTransformer,
   ForEachToForTransformer,
   ConstantFoldingTransformer,
   DeadCodeEliminationTransformer,
@@ -45,6 +45,8 @@ const TRANSFORMERS: NodeTransformer<any>[] = [
   LogicalSimplificationTransformer,
   HoistArrayLengthTransformer,
   ForOfToIndexedTransformer,
+  InlineArrowToFunctionTransformer,
+  AssignedArrowToFunctionTransformer,
 ];
 
 function collectDeclaredVariables(ast: any): Set<string> {

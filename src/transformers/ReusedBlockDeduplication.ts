@@ -17,203 +17,117 @@
 
 import * as t from "@babel/types";
 import { NodeTransformer, TransformContext } from "./transformers";
-import { traverseFast } from "@babel/types";
+import traverse from "@babel/traverse";
 
-const MIN_BLOCK_SIZE = 5;
-const MAX_ATTEMPTS = 10;
+const BLOCK_SIZE = 5;
+const HASH_KEY = "dedupBlock.hashes";
+const FN_KEY = "dedupBlock.functions";
 
-// This map tracks all seen reusable blocks by hash → fnId + block
-const blockHashMap = new Map<
-  string,
-  { fnId: t.Identifier; block: t.Statement[] }
->();
-
-const DATA_KEY = "reused-block-dedup.functions";
-
-function structuredCloneLike<T>(node: T): T {
-  return JSON.parse(JSON.stringify(node));
-}
-
-export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
+export const DeduplicateBlocksTransformer: NodeTransformer<t.Program> = {
   key: "reused-block-dedup",
   displayName: "Deduplicate Reused Statement Blocks",
-  nodeTypes: ["BlockStatement", "Program"],
-  phases: ["main", "post"],
+  nodeTypes: ["Program"],
+  phases: ["post"],
 
-  test: (node, context) => {
-    if (context.phase === "main" && t.isBlockStatement(node)) {
-      return node.body.length >= MIN_BLOCK_SIZE;
-    }
+  test: () => true,
 
-    if (context.phase === "post" && t.isProgram(node)) {
-      return true;
-    }
+  transform(node, context) {
+    // Init shared data
+    const blockHashes: Map<
+      string,
+      { fnId: t.Identifier; block: t.Statement[]; count: number }
+    > = (context.sharedData[HASH_KEY] ??= new Map());
+    const hoisted: t.FunctionDeclaration[] = [];
 
-    return false;
-  },
+    // First pass: collect all repeated blocks
+    traverse(node, {
+      BlockStatement(path) {
+        const stmts = path.node.body;
+        for (let i = 0; i <= stmts.length - BLOCK_SIZE; i++) {
+          const slice = stmts.slice(i, i + BLOCK_SIZE);
+          if (!isSafe(slice)) continue;
 
-  transform(node, context: TransformContext): t.Node {
-    if (!context.sharedData[DATA_KEY]) {
-      context.sharedData[DATA_KEY] = [];
-    }
+          const hash = hashBlock(slice);
+          let entry = blockHashes.get(hash);
 
-    // Inject hoisted functions at the top of the program
-    if (t.isProgram(node) && context.phase === "post") {
-      if (context.sharedData[DATA_KEY]?.length) {
-        node.body.unshift(...context.sharedData[DATA_KEY]);
-        context.sharedData[DATA_KEY].length = 0; // Reset after injection
-      }
-      return node;
-    }
+          if (!entry) {
+            const fnId = context.helpers.generateUid("dedup_block");
+            entry = { fnId, block: slice.map((s) => t.cloneNode(s)), count: 0 };
+            blockHashes.set(hash, entry);
+          }
 
-    if (context.phase !== "main") return node;
+          entry.count++;
+        }
+      },
+    });
 
-    if (!t.isBlockStatement(node) || node.body.length < MIN_BLOCK_SIZE)
-      return node;
+    // Second pass: replace and hoist
+    traverse(node, {
+      BlockStatement(path) {
+        const stmts = path.node.body;
+        for (let i = 0; i <= stmts.length - BLOCK_SIZE; i++) {
+          const slice = stmts.slice(i, i + BLOCK_SIZE);
+          const hash = hashBlock(slice);
+          const entry = blockHashes.get(hash);
+          if (!entry || entry.count < 2) continue;
 
-    const original = node.body;
-    const updated: t.Statement[] = [...original];
+          // Hoist if not yet hoisted
+          if (!hoisted.find((fn) => fn.id?.name === entry!.fnId.name)) {
+            hoisted.push(
+              t.functionDeclaration(
+                entry.fnId,
+                [],
+                t.blockStatement(entry.block)
+              )
+            );
+          }
 
-    for (
-      let i = 0;
-      i <= original.length - MIN_BLOCK_SIZE && i < MAX_ATTEMPTS;
-      i++
-    ) {
-      const slice = original.slice(i, i + MIN_BLOCK_SIZE);
-      if (!isSafeBlock(slice)) continue;
+          // Replace block with call
+          slice.splice(
+            0,
+            BLOCK_SIZE,
+            t.expressionStatement(t.callExpression(entry.fnId, []))
+          );
 
-      const hash = createBlockHash(slice);
-      let entry = blockHashMap.get(hash);
+          path.node.body.splice(i, BLOCK_SIZE, slice[0]);
+          i += BLOCK_SIZE - 1; // Skip over replaced block
+        }
+      },
+    });
 
-      if (!entry) {
-        const fnId = context.helpers.generateUid("shared_block");
-        entry = { fnId, block: slice };
-        blockHashMap.set(hash, entry);
-        continue;
-      }
-
-      // Hoist function only once
-      const alreadyHoisted = context.sharedData[DATA_KEY]?.some(
-        (fn: t.FunctionDeclaration) => fn.id?.name === entry!.fnId.name
-      );
-
-      if (!alreadyHoisted) {
-        const fnDecl = t.functionDeclaration(
-          entry.fnId,
-          [],
-          t.blockStatement(entry.block.map((s) => structuredCloneLike(s)))
-        );
-        context.sharedData[DATA_KEY]?.push(fnDecl);
-      }
-
-      // Replace the block with a call to the shared function
-      updated.splice(
-        i,
-        MIN_BLOCK_SIZE,
-        t.expressionStatement(t.callExpression(entry.fnId, []))
-      );
-      break; // Limit to one dedup per block
-    }
-
-    return t.blockStatement(updated);
+    // Inject hoisted functions at the top
+    node.body.unshift(...hoisted);
+    return node;
   },
 };
 
-function isSafeBlock(statements: t.Statement[]): boolean {
-  return statements.every(
+// Helpers
+
+function hashBlock(stmts: t.Statement[]): string {
+  return stmts.map((s) => s.type + "-" + hashShallow(s)).join(";");
+}
+
+function hashShallow(node: t.Node): string {
+  if (t.isExpressionStatement(node) && t.isCallExpression(node.expression)) {
+    const callee = node.expression.callee;
+    return `call:${t.isIdentifier(callee) ? callee.name : "?"}`;
+  }
+  if (t.isVariableDeclaration(node)) {
+    return node.declarations
+      .map((d) =>
+        t.isIdentifier(d.id) ? `${d.id.name}:${d.init?.type ?? "?"}` : "?"
+      )
+      .join(",");
+  }
+  return node.type;
+}
+
+function isSafe(stmts: t.Statement[]): boolean {
+  return stmts.every(
     (stmt) =>
       !t.isReturnStatement(stmt) &&
-      !t.isBreakStatement(stmt) &&
-      !t.isContinueStatement(stmt) &&
       !t.isThrowStatement(stmt) &&
-      !hasThisOrArguments(stmt)
+      !t.isBreakStatement(stmt) &&
+      !t.isContinueStatement(stmt)
   );
-}
-
-function hasThisOrArguments(node: t.Node): boolean {
-  let found = false;
-
-  traverseFast(node, (n) => {
-    if (t.isThisExpression(n)) found = true;
-    if (t.isIdentifier(n, { name: "arguments" })) found = true;
-  });
-
-  return found;
-}
-
-function createBlockHash(statements: t.Statement[]): string {
-  return statements.map((stmt) => hashStatement(stmt)).join(";");
-}
-
-function hashStatement(stmt: t.Statement): string {
-  if (t.isExpressionStatement(stmt)) {
-    return `expr:${hashExpression(stmt.expression)}`;
-  }
-
-  if (t.isVariableDeclaration(stmt)) {
-    const decls = stmt.declarations
-      .map((d) => {
-        const id = t.isIdentifier(d.id) ? d.id.name : "pattern";
-        const init = d.init ? hashExpression(d.init) : "undefined";
-        return `${id}=${init}`;
-      })
-      .join(",");
-    return `var:${stmt.kind}:${decls}`;
-  }
-
-  if (t.isIfStatement(stmt)) {
-    return `if:${hashExpression(stmt.test)}`;
-  }
-
-  if (t.isReturnStatement(stmt)) {
-    return `return:${stmt.argument ? hashExpression(stmt.argument) : "void"}`;
-  }
-
-  if (t.isExpression(stmt)) {
-    return hashExpression(stmt);
-  }
-
-  return stmt.type; // fallback
-}
-
-function hashExpression(expr: t.Expression): string {
-  if (t.isIdentifier(expr)) {
-    return `id:${expr.name}`;
-  }
-
-  if (t.isLiteral(expr)) {
-    return `lit:${String((expr as any).value)}`;
-  }
-
-  if (t.isCallExpression(expr)) {
-    const callee = t.isIdentifier(expr.callee)
-      ? expr.callee.name
-      : expr.callee.type;
-    const args = expr.arguments
-      .map((arg) => (t.isExpression(arg) ? hashExpression(arg) : "arg"))
-      .join(",");
-    return `call:${callee}(${args})`;
-  }
-
-  if (t.isBinaryExpression(expr)) {
-    const left = t.isExpression(expr.left)
-      ? hashExpression(expr.left)
-      : expr.left.type;
-    const right = t.isExpression(expr.right)
-      ? hashExpression(expr.right)
-      : "expr";
-    return `bin:${left}${expr.operator}${right}`;
-  }
-
-  if (t.isMemberExpression(expr)) {
-    const obj = t.isIdentifier(expr.object)
-      ? expr.object.name
-      : expr.object.type;
-    const prop = t.isIdentifier(expr.property)
-      ? expr.property.name
-      : expr.property.type;
-    return `mem:${obj}.${prop}`;
-  }
-
-  return expr.type; // fallback
 }

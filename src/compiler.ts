@@ -40,7 +40,7 @@ import { HoistArrayLengthTransformer } from "./transformers/HoistArrayLength";
 import { ForOfToIndexedTransformer } from "./transformers/ForOfToIndexed";
 import { InlineArrowToFunctionTransformer } from "./transformers/InlineArrowToFunction";
 import { AssignedArrowToFunctionTransformer } from "./transformers/AssignedArrowToFunction";
-import { ReusedBlockDeduplicationTransformer } from "./transformers/ReusedBlockDeduplication";
+import { DeduplicateBlocksTransformer } from "./transformers/ReusedBlockDeduplication";
 
 const TRANSFORMERS: NodeTransformer<any>[] = [
   ForEachToForTransformer,
@@ -52,7 +52,7 @@ const TRANSFORMERS: NodeTransformer<any>[] = [
   ForOfToIndexedTransformer,
   InlineArrowToFunctionTransformer,
   AssignedArrowToFunctionTransformer,
-  ReusedBlockDeduplicationTransformer,
+  DeduplicateBlocksTransformer,
 ];
 
 function collectDeclaredVariables(ast: any): Set<string> {

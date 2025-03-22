@@ -22,7 +22,7 @@ import { traverseFast } from "@babel/types";
 export const AssignedArrowToFunctionTransformer: NodeTransformer<t.VariableDeclaration> =
   {
     key: "assigned-arrow-to-function",
-    displayName: "Arrow → Function (Assigned)",
+    displayName: "Arrow to Function (Assigned)",
     nodeTypes: ["VariableDeclaration"],
     phases: ["pre"],
 

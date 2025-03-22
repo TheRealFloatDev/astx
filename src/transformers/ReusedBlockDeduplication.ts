@@ -17,7 +17,6 @@
 
 import * as t from "@babel/types";
 import { NodeTransformer, TransformContext } from "./transformers";
-import generate from "@babel/generator";
 import { traverseFast } from "@babel/types";
 
 const MIN_BLOCK_SIZE = 3;
@@ -36,7 +35,17 @@ export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
   nodeTypes: ["BlockStatement", "Program"],
   phases: ["main", "post"],
 
-  test: () => true,
+  test: (node, context) => {
+    if (context.phase === "main" && t.isBlockStatement(node)) {
+      return node.body.length >= MIN_BLOCK_SIZE;
+    }
+
+    if (context.phase === "post" && t.isProgram(node)) {
+      return true;
+    }
+
+    return false;
+  },
 
   transform(node, context: TransformContext): t.Node {
     if (!context.sharedData[DATA_KEY]) {
@@ -124,5 +133,78 @@ function hasThisOrArguments(node: t.Node): boolean {
 }
 
 function createBlockHash(statements: t.Statement[]): string {
-  return statements.map((stmt) => generate(stmt).code).join("\n");
+  return statements.map((stmt) => hashStatement(stmt)).join(";");
+}
+
+function hashStatement(stmt: t.Statement): string {
+  if (t.isExpressionStatement(stmt)) {
+    return `expr:${hashExpression(stmt.expression)}`;
+  }
+
+  if (t.isVariableDeclaration(stmt)) {
+    const decls = stmt.declarations
+      .map((d) => {
+        const id = t.isIdentifier(d.id) ? d.id.name : "pattern";
+        const init = d.init ? hashExpression(d.init) : "undefined";
+        return `${id}=${init}`;
+      })
+      .join(",");
+    return `var:${stmt.kind}:${decls}`;
+  }
+
+  if (t.isIfStatement(stmt)) {
+    return `if:${hashExpression(stmt.test)}`;
+  }
+
+  if (t.isReturnStatement(stmt)) {
+    return `return:${stmt.argument ? hashExpression(stmt.argument) : "void"}`;
+  }
+
+  if (t.isExpression(stmt)) {
+    return hashExpression(stmt);
+  }
+
+  return stmt.type; // fallback
+}
+
+function hashExpression(expr: t.Expression): string {
+  if (t.isIdentifier(expr)) {
+    return `id:${expr.name}`;
+  }
+
+  if (t.isLiteral(expr)) {
+    return `lit:${String((expr as any).value)}`;
+  }
+
+  if (t.isCallExpression(expr)) {
+    const callee = t.isIdentifier(expr.callee)
+      ? expr.callee.name
+      : expr.callee.type;
+    const args = expr.arguments
+      .map((arg) => (t.isExpression(arg) ? hashExpression(arg) : "arg"))
+      .join(",");
+    return `call:${callee}(${args})`;
+  }
+
+  if (t.isBinaryExpression(expr)) {
+    const left = t.isExpression(expr.left)
+      ? hashExpression(expr.left)
+      : expr.left.type;
+    const right = t.isExpression(expr.right)
+      ? hashExpression(expr.right)
+      : "expr";
+    return `bin:${left}${expr.operator}${right}`;
+  }
+
+  if (t.isMemberExpression(expr)) {
+    const obj = t.isIdentifier(expr.object)
+      ? expr.object.name
+      : expr.object.type;
+    const prop = t.isIdentifier(expr.property)
+      ? expr.property.name
+      : expr.property.type;
+    return `mem:${obj}.${prop}`;
+  }
+
+  return expr.type; // fallback
 }

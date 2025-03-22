@@ -26,6 +26,8 @@ import { gunzipSync } from "zlib";
 import { readFileSync } from "fs";
 import generate from "@babel/generator";
 import { templateElement } from "@babel/types";
+import { createRequire } from "module";
+import path from "path";
 
 const RESERVED_WORDS = new Set([
   "abstract",
@@ -193,8 +195,6 @@ export function generateJSCode(compiled: CompiledProgram): string {
   return code;
 }
 
-import vm from "vm";
-
 type RunMode = "eval" | "scoped" | "vm";
 
 interface RunOptions {
@@ -251,9 +251,16 @@ export function run(compiled: CompiledProgram, options: RunOptions = {}) {
       throw new Error("VM mode is only supported in Node.js environments.");
     }
 
+    const scopedRequire = createRequire(__filename);
+
     return (async () => {
       const { default: vm } = await import("vm"); // 👈 dynamic import
-      const vmContext = vm.createContext({ ...context });
+      const vmContext = vm.createContext({
+        ...context,
+        __dirname: process.cwd(),
+        __filename: path.join(process.cwd(), "runtime.js"), // dummy filename
+        require: scopedRequire,
+      });
       const script = new vm.Script(code);
       return script.runInContext(vmContext);
     })();

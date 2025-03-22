@@ -92,7 +92,7 @@ export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
         const fnDecl = t.functionDeclaration(
           entry.fnId,
           [],
-          t.blockStatement(entry.block.map((s) => t.cloneNode(s, true)))
+          t.blockStatement(entry.block.map((s) => t.cloneNode(s)))
         );
         context.sharedData[DATA_KEY]?.push(fnDecl);
       }

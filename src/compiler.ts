@@ -95,6 +95,7 @@ export function compile(jsCode: string): CompiledProgram {
 
   // Transformers
   const phases: Phase[] = ["pre", "main", "post"];
+  const sharedData: Record<string, any> = {};
 
   for (const phase of phases) {
     traverse(ast, {
@@ -104,6 +105,7 @@ export function compile(jsCode: string): CompiledProgram {
           declaredVars: declaredVars,
           path: path,
           phase: phase,
+          sharedData: sharedData,
           helpers: {
             generateUid(base) {
               const identifier = path.scope.generateUidIdentifier(base);

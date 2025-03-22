@@ -15,18 +15,28 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import * as t from "@babel/types";
 import { NodeTransformer } from "./transformers";
 
-export const ArrowFunctionToFunctionTransformer: NodeTransformer = {
-  phases: ["pre"],
-  nodeTypes: ["ArrowFunctionExpression"],
-  key: "arrow-to-function",
-  displayName: "Arrow Function to Function Conversion",
-  test: () => true, // always applicable
-  transform: function (node: any) {
-    return {
-      ...node,
-      type: "FunctionDeclaration",
-    };
-  },
-};
+export const ArrowFunctionToFunctionTransformer: NodeTransformer<t.ArrowFunctionExpression> =
+  {
+    phases: ["pre"],
+    nodeTypes: ["ArrowFunctionExpression"],
+    key: "arrow-to-function",
+    displayName: "Arrow Function to Function Expression",
+    test: () => true,
+
+    transform(node) {
+      const func = t.functionExpression(
+        null, // anonymous
+        node.params,
+        t.isBlockStatement(node.body)
+          ? node.body
+          : t.blockStatement([t.returnStatement(node.body)]),
+        false, // not a generator
+        false // not async (you could preserve node.async here if needed)
+      );
+
+      return func;
+    },
+  };

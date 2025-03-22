@@ -72,8 +72,11 @@ export interface TransformContext {
     insertAfter?: (node: t.Node) => void;
   };
 
-  // Custom properties
-  [key: string]: any;
+  /**
+   * Shared data between transformers, e.g. for deduplication
+   * It will be cleared at the end of the phase
+   */
+  sharedData: Record<string, any>;
 }
 
 export interface NodeTransformer<TNode extends t.Node = t.Node> {

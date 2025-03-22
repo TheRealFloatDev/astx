@@ -73,8 +73,7 @@ export interface TransformContext {
   };
 
   /**
-   * Shared data between transformers, e.g. for deduplication
-   * It will be cleared at the end of the phase
+   * Shared data between transformers and phases, e.g. for deduplication
    */
   sharedData: Record<string, any>;
 }

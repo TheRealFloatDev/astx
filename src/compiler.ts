@@ -22,7 +22,11 @@ import {
   MAGIC_HEADER,
   MINIMAL_AST_KEYS,
 } from ".";
-import { NodeTransformer, Phase } from "./transformers/transformers.js";
+import {
+  NodeTransformer,
+  Phase,
+  TransformContext,
+} from "./transformers/transformers.js";
 import * as babelParser from "@babel/parser";
 import { gzipSync } from "zlib";
 import { writeFileSync } from "fs";
@@ -36,6 +40,7 @@ import { HoistArrayLengthTransformer } from "./transformers/HoistArrayLength";
 import { ForOfToIndexedTransformer } from "./transformers/ForOfToIndexed";
 import { InlineArrowToFunctionTransformer } from "./transformers/InlineArrowToFunction";
 import { AssignedArrowToFunctionTransformer } from "./transformers/AssignedArrowToFunction";
+import { DeduplicateVariablesTransformer } from "./transformers/DeduplicateVariables";
 
 const TRANSFORMERS: NodeTransformer<any>[] = [
   ForEachToForTransformer,
@@ -47,6 +52,7 @@ const TRANSFORMERS: NodeTransformer<any>[] = [
   ForOfToIndexedTransformer,
   InlineArrowToFunctionTransformer,
   AssignedArrowToFunctionTransformer,
+  DeduplicateVariablesTransformer,
 ];
 
 function collectDeclaredVariables(ast: any): Set<string> {
@@ -93,6 +99,35 @@ export function compile(jsCode: string): CompiledProgram {
   for (const phase of phases) {
     traverse(ast, {
       enter(path) {
+        const context: TransformContext = {
+          ast: ast,
+          declaredVars: declaredVars,
+          path: path,
+          helpers: {
+            generateUid(base) {
+              const identifier = path.scope.generateUidIdentifier(base);
+              declaredVars.add(identifier.name);
+              return identifier;
+            },
+            replaceNode(from, to) {
+              traverse(ast, {
+                enter(path) {
+                  if (path.node === from) {
+                    path.replaceWith(to);
+                  }
+                },
+              });
+            },
+            insertBefore(node) {
+              path.insertBefore(node);
+            },
+            insertAfter(node) {
+              path.insertAfter(node);
+            },
+          },
+          parent: path.parent,
+        };
+
         for (const transformer of TRANSFORMERS) {
           const matchesPhase = transformer.phases
             ? transformer.phases.includes(phase)
@@ -116,34 +151,7 @@ export function compile(jsCode: string): CompiledProgram {
             );
 
             try {
-              const result = transformer.transform(path.node, {
-                ast: ast,
-                declaredVars: declaredVars,
-                path: path,
-                helpers: {
-                  generateUid(base) {
-                    const identifier = path.scope.generateUidIdentifier(base);
-                    declaredVars.add(identifier.name);
-                    return identifier;
-                  },
-                  replaceNode(from, to) {
-                    traverse(ast, {
-                      enter(path) {
-                        if (path.node === from) {
-                          path.replaceWith(to);
-                        }
-                      },
-                    });
-                  },
-                  insertBefore(node) {
-                    path.insertBefore(node);
-                  },
-                  insertAfter(node) {
-                    path.insertAfter(node);
-                  },
-                },
-                parent: path.parent,
-              });
+              const result = transformer.transform(path.node, context);
 
               if (result === null) {
                 // Remove node from AST

@@ -67,6 +67,9 @@ export interface TransformContext {
      */
     insertAfter?: (node: t.Node) => void;
   };
+
+  // Custom properties
+  [key: string]: any;
 }
 
 export interface NodeTransformer<TNode extends t.Node = t.Node> {

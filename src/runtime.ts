@@ -249,7 +249,7 @@ export function run(compiled: CompiledProgram, options: RunOptions = {}) {
       throw new Error("VM mode is only supported in Node.js environments.");
     }
 
-    (async () => {
+    return (async () => {
       const { default: vm } = await import("vm"); // 👈 dynamic import
       const vmContext = vm.createContext({ ...context });
       const script = new vm.Script(code);

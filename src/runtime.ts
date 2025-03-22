@@ -27,6 +27,71 @@ import { readFileSync } from "fs";
 import generate from "@babel/generator";
 import { templateElement } from "@babel/types";
 
+const RESERVED_WORDS = new Set([
+  "abstract",
+  "await",
+  "boolean",
+  "break",
+  "byte",
+  "case",
+  "catch",
+  "char",
+  "class",
+  "const",
+  "continue",
+  "debugger",
+  "default",
+  "delete",
+  "do",
+  "double",
+  "else",
+  "enum",
+  "export",
+  "extends",
+  "false",
+  "final",
+  "finally",
+  "float",
+  "for",
+  "function",
+  "goto",
+  "if",
+  "implements",
+  "import",
+  "in",
+  "instanceof",
+  "int",
+  "interface",
+  "let",
+  "long",
+  "native",
+  "new",
+  "null",
+  "package",
+  "private",
+  "protected",
+  "public",
+  "return",
+  "short",
+  "static",
+  "super",
+  "switch",
+  "synchronized",
+  "this",
+  "throw",
+  "throws",
+  "transient",
+  "true",
+  "try",
+  "typeof",
+  "var",
+  "void",
+  "volatile",
+  "while",
+  "with",
+  "yield",
+]);
+
 function generateShortName(index: number): string {
   const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
   let name = "";
@@ -34,6 +99,12 @@ function generateShortName(index: number): string {
     name = chars[index % chars.length] + name;
     index = Math.floor(index / chars.length) - 1;
   } while (index >= 0);
+
+  // If the name is a reserved word, add an underscore
+  if (RESERVED_WORDS.has(name)) {
+    name = "_" + name;
+  }
+
   return name;
 }
 

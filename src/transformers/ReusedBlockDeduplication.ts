@@ -1,45 +1,36 @@
-/*
- *   Copyright (c) 2025 Alexander Neitzel
-
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
-
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
-
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 import * as t from "@babel/types";
 import { NodeTransformer, TransformContext } from "./transformers";
 import generate from "@babel/generator";
 import { traverseFast } from "@babel/types";
 
-// Minimum number of lines required to deduplicate
 const MIN_BLOCK_SIZE = 3;
 
-// Shared cache for block hashes
+// This map tracks all seen reusable blocks by hash → fnId + block
 const blockHashMap = new Map<
   string,
   { fnId: t.Identifier; block: t.Statement[] }
 >();
 
-// Temporarily collect hoisted function declarations
-
 export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
   key: "reused-block-dedup",
   displayName: "Deduplicate Reused Statement Blocks",
-  nodeTypes: ["BlockStatement"],
-  phases: ["post"],
+  nodeTypes: ["BlockStatement", "Program"],
+  phases: ["main", "post"],
 
   test: () => true,
 
-  transform(node, context): t.Node {
+  transform(node, context: TransformContext): t.Node {
+    // Inject hoisted functions at the top of the program
+    if (t.isProgram(node) && context.phase === "post") {
+      if (context.hoistedFunctions?.length) {
+        node.body.unshift(...context.hoistedFunctions);
+        context.hoistedFunctions.length = 0; // Reset after injection
+      }
+      return node;
+    }
+
+    if (context.phase !== "main") return node;
+
     if (!t.isBlockStatement(node) || node.body.length < MIN_BLOCK_SIZE)
       return node;
 
@@ -51,35 +42,36 @@ export const ReusedBlockDeduplicationTransformer: NodeTransformer<t.Node> = {
       if (!isSafeBlock(slice)) continue;
 
       const hash = createBlockHash(slice);
+      let entry = blockHashMap.get(hash);
 
-      // First time seeing this block
-      if (!blockHashMap.has(hash)) {
+      if (!entry) {
         const fnId = context.helpers.generateUid("shared_block");
-        blockHashMap.set(hash, { fnId, block: slice });
+        entry = { fnId, block: slice };
+        blockHashMap.set(hash, entry);
         continue;
       }
 
-      // Second+ time → replace with function call
-      const { fnId, block } = blockHashMap.get(hash)!;
+      // Hoist function only once
+      const alreadyHoisted = context.hoistedFunctions?.some(
+        (fn: t.FunctionDeclaration) => fn.id?.name === entry!.fnId.name
+      );
 
-      // Only hoist once
-      if (!context.hoistedFunctions.find((fn) => fn.id?.name === fnId.name)) {
-        context.hoistedFunctions.push(
-          t.functionDeclaration(
-            fnId,
-            [],
-            t.blockStatement(block.map((s) => t.cloneNode(s, true)))
-          )
+      if (!alreadyHoisted) {
+        const fnDecl = t.functionDeclaration(
+          entry.fnId,
+          [],
+          t.blockStatement(entry.block.map((s) => t.cloneNode(s, true)))
         );
+        context.hoistedFunctions?.push(fnDecl);
       }
 
-      // Replace the block with a function call
+      // Replace the block with a call to the shared function
       updated.splice(
         i,
         MIN_BLOCK_SIZE,
-        t.expressionStatement(t.callExpression(fnId, []))
+        t.expressionStatement(t.callExpression(entry.fnId, []))
       );
-      break; // only one dedup per block
+      break; // Limit to one dedup per block
     }
 
     return t.blockStatement(updated);

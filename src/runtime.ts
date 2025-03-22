@@ -193,9 +193,63 @@ export function generateJSCode(compiled: CompiledProgram): string {
   return code;
 }
 
-export function run(compiled: CompiledProgram) {
-  const code = generateJSCode(compiled);
+import vm from "vm";
 
-  const fn = new Function(code);
-  return fn();
+type RunMode = "eval" | "scoped" | "vm";
+
+interface RunOptions {
+  mode?: RunMode;
+  inject?: Record<string, any>;
+}
+
+export function run(compiled: CompiledProgram, options: RunOptions = {}) {
+  const code = generateJSCode(compiled);
+  const mode: RunMode = options.mode ?? "eval";
+  const inject = options.inject ?? {};
+
+  const defaultInjects = {
+    require: typeof require !== "undefined" ? require : undefined,
+    import: (path: string) => import(path), // dynamic import for ESM
+  };
+
+  const context = { ...defaultInjects, ...inject };
+
+  if (mode !== "vm" && !context.require) {
+    console.warn(
+      "[ASTX Runtime] Warning: 'require' seems not to be available in the current environment."
+    );
+  }
+
+  if (mode === "eval") {
+    // ✅ Simple eval, runs in current scope
+    Object.assign(globalThis, context); // inject into global if needed
+    return eval(code);
+  }
+
+  if (mode === "scoped") {
+    // ✅ Use Function constructor with manual injection
+    const argNames = Object.keys(context);
+    const argValues = Object.values(context);
+    const fn = new Function(...argNames, code);
+    return fn(...argValues);
+  }
+
+  if (mode === "vm") {
+    // ✅ Node.js only sandbox
+    if (
+      typeof process === "undefined" ||
+      typeof process.versions?.node === "undefined"
+    ) {
+      throw new Error("VM mode is only supported in Node.js environments.");
+    }
+
+    (async () => {
+      const { default: vm } = await import("vm"); // 👈 dynamic import
+      const vmContext = vm.createContext({ ...context });
+      const script = new vm.Script(code);
+      return script.runInContext(vmContext);
+    })();
+  }
+
+  throw new Error(`Unknown run mode: ${mode}`);
 }

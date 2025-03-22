@@ -116,7 +116,7 @@ export function compile(jsCode: string): CompiledProgram {
             );
 
             try {
-              const newNode = transformer.transform(path.node, {
+              const result = transformer.transform(path.node, {
                 ast: ast,
                 declaredVars: declaredVars,
                 path: path,
@@ -145,13 +145,15 @@ export function compile(jsCode: string): CompiledProgram {
                 parent: path.parent,
               });
 
-              if (newNode === null) {
-                // Remove node if null
+              if (result === null) {
+                // Remove node from AST
                 path.remove();
-                break; // Stop processing this node (it's been removed)
-              } else if (newNode !== path.node) {
-                // Only replace if the node changed
-                path.replaceWith(newNode);
+              } else if (Array.isArray(result)) {
+                // Replace node with multiple nodes
+                path.replaceWithMultiple(result);
+              } else if (result !== path.node) {
+                // Replace node with new node if it changed
+                path.replaceWith(result);
               }
             } catch (e) {
               console.warn(

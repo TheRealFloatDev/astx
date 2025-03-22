@@ -216,6 +216,8 @@ export function run(compiled: CompiledProgram, options: RunOptions = {}) {
   const defaultInjects = {
     require: typeof require !== "undefined" ? require : undefined,
     import: (path: string) => import(path), // dynamic import for ESM
+    process: process,
+    console: console,
   };
 
   const context = { ...defaultInjects, ...inject };

@@ -19,7 +19,7 @@ import * as t from "@babel/types";
 import { NodeTransformer, TransformContext } from "./transformers";
 import { traverseFast } from "@babel/types";
 
-const MIN_BLOCK_SIZE = 3;
+const MIN_BLOCK_SIZE = 5;
 
 // This map tracks all seen reusable blocks by hash → fnId + block
 const blockHashMap = new Map<

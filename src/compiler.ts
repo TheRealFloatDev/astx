@@ -108,7 +108,7 @@ export function compile(jsCode: string): CompiledProgram {
                 path.node.start ?? "Generated Node"
               } (Type: ${path.node.type}) ${
                 path.node.loc?.start.line
-                  ? `at line ${path.node.loc?.start.line}`
+                  ? `at line ${path.node.loc?.start.line}:${path.node.loc?.start.column}`
                   : "- Not in original source"
               }`
             );

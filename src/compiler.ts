@@ -103,6 +103,7 @@ export function compile(jsCode: string): CompiledProgram {
           ast: ast,
           declaredVars: declaredVars,
           path: path,
+          phase: phase,
           helpers: {
             generateUid(base) {
               const identifier = path.scope.generateUidIdentifier(base);

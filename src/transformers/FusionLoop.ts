@@ -132,24 +132,17 @@ export const FusionLoopTransformer: NodeTransformer<t.VariableDeclarator> = {
         t.expressionStatement(
           t.assignmentExpression(
             "=",
-            t.identifier(resultId.name),
-            t.callExpression(reduceFnId, [
-              t.identifier(resultId.name),
-              currentVal,
-            ])
+            resultId,
+            t.callExpression(reduceFnId, [resultId, currentVal])
           )
         )
       );
     } else {
       loopBody.push(
         t.expressionStatement(
-          t.callExpression(
-            t.memberExpression(
-              t.identifier(resultId.name),
-              t.identifier("push")
-            ),
-            [currentVal]
-          )
+          t.callExpression(t.memberExpression(resultId, t.identifier("push")), [
+            currentVal,
+          ])
         )
       );
     }
@@ -172,23 +165,22 @@ export const FusionLoopTransformer: NodeTransformer<t.VariableDeclarator> = {
     block.push(...hoisted);
 
     block.push(
-      t.variableDeclaration("let", [
-        t.variableDeclarator(
-          t.identifier(resultId.name),
+      t.expressionStatement(
+        t.assignmentExpression(
+          "=",
+          resultId,
           reduce && reduceInit
             ? reduceInit
             : t.newExpression(t.identifier("Array"), [])
-        ),
-      ])
+        )
+      )
     );
 
     block.push(loop);
 
     if (!(t.isIdentifier(finalExpr) && finalExpr.name === resultId.name)) {
       block.push(
-        t.expressionStatement(
-          t.assignmentExpression("=", t.identifier(resultId.name), finalExpr)
-        )
+        t.expressionStatement(t.assignmentExpression("=", resultId, finalExpr))
       );
     }
 

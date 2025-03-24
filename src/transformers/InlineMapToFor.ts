@@ -16,8 +16,7 @@
  */
 
 import * as t from "@babel/types";
-import { NodeTransformer, TransformContext } from "./transformers";
-import generate from "@babel/generator";
+import { NodeTransformer } from "./transformers";
 
 export const UnchainMapToLoopTransformer: NodeTransformer<t.VariableDeclarator> =
   {

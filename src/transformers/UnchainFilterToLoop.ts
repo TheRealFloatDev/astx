@@ -1,27 +1,10 @@
-/*
- *   Copyright (c) 2025 Alexander Neitzel
-
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
-
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
-
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 import * as t from "@babel/types";
 import { NodeTransformer, TransformContext } from "./transformers";
 
 export const UnchainFilterToLoopTransformer: NodeTransformer<t.VariableDeclarator> =
   {
     key: "filter-unchain-to-loop",
-    displayName: "Unchain .filter() to Preallocated Loops (Scoped)",
+    displayName: "Unchain .filter() to Preallocated Loops (Scoped, Hoisted)",
     nodeTypes: ["VariableDeclarator"],
     phases: ["main"],
 
@@ -46,6 +29,8 @@ export const UnchainFilterToLoopTransformer: NodeTransformer<t.VariableDeclarato
 
       const inputExpr = current;
       const statements: t.Statement[] = [];
+      const hoistedFns: t.VariableDeclaration[] = [];
+
       let prev = inputExpr;
       let lastTemp: t.Identifier | null = null;
 
@@ -65,27 +50,17 @@ export const UnchainFilterToLoopTransformer: NodeTransformer<t.VariableDeclarato
             | t.ArrowFunctionExpression
             | t.FunctionExpression;
 
+          const fnId = context.helpers.generateUid(`filterFn${i}`);
+          hoistedFns.push(
+            t.variableDeclaration("const", [t.variableDeclarator(fnId, fn)])
+          );
+
           const tmp = context.helpers.generateUid(`tmp${i + 1}`);
           const write = context.helpers.generateUid(`w${i + 1}`);
           const index = context.helpers.generateUid("i");
           const el = context.helpers.generateUid("el");
 
           const inputLen = t.memberExpression(prev, t.identifier("length"));
-
-          const conditionArgs = [el];
-          if (fn.params.length > 1) {
-            conditionArgs.push(index);
-          }
-
-          const test = t.isBlockStatement(fn.body)
-            ? t.callExpression(
-                t.functionExpression(null, fn.params, fn.body),
-                conditionArgs
-              )
-            : t.callExpression(
-                t.arrowFunctionExpression(fn.params, fn.body),
-                conditionArgs
-              );
 
           // const tmpN = new Array(prev.length);
           statements.push(
@@ -97,14 +72,14 @@ export const UnchainFilterToLoopTransformer: NodeTransformer<t.VariableDeclarato
             ])
           );
 
-          // let writeN = 0;
+          // let wN = 0;
           statements.push(
             t.variableDeclaration("let", [
               t.variableDeclarator(write, t.numericLiteral(0)),
             ])
           );
 
-          // for (...) { if (...) tmp[write++] = el; }
+          // for (...) { const el = arr[i]; if (filterFn(el)) { tmp[w++] = el; } }
           statements.push(
             t.forStatement(
               t.variableDeclaration("let", [
@@ -120,7 +95,7 @@ export const UnchainFilterToLoopTransformer: NodeTransformer<t.VariableDeclarato
                   ),
                 ]),
                 t.ifStatement(
-                  test,
+                  t.callExpression(fnId, [el]), // ✅ use hoisted filterFn
                   t.blockStatement([
                     t.expressionStatement(
                       t.assignmentExpression(
@@ -164,7 +139,8 @@ export const UnchainFilterToLoopTransformer: NodeTransformer<t.VariableDeclarato
         t.variableDeclarator(node.id),
       ]);
 
-      const block = t.blockStatement(statements);
+      const block = t.blockStatement([...hoistedFns, ...statements]);
+
       context.helpers.replaceNode(context.parent!, [resultLet, block]);
       return null;
     },

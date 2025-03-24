@@ -44,6 +44,7 @@ import { UnchainMapToLoopTransformer } from "./transformers/UnchainMapToLoop";
 import { UnchainFilterToLoopTransformer } from "./transformers/UnchainFilterToLoop";
 import { UnchainReduceToLoopTransformer } from "./transformers/UnchainReduceToLoop";
 import { FusionLoopTransformer } from "./transformers/FusionLoop";
+import { RestoreExportedNamesTransformer } from "./transformers/RestoreExportedNames";
 
 const TRANSFORMERS: NodeTransformer<any>[] = [
   ForEachToForTransformer,
@@ -59,6 +60,7 @@ const TRANSFORMERS: NodeTransformer<any>[] = [
   UnchainFilterToLoopTransformer,
   UnchainReduceToLoopTransformer,
   FusionLoopTransformer,
+  RestoreExportedNamesTransformer,
 ];
 
 function collectDeclaredVariables(ast: any): Set<string> {

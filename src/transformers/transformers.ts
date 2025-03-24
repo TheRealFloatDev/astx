@@ -57,7 +57,7 @@ export interface TransformContext {
      * @param to The node to replace with
      * @returns void
      */
-    replaceNode: (from: t.Node, to: t.Node) => void;
+    replaceNode: (from: t.Node, to: t.Node | t.Node[]) => void;
     /**
      * Inserts a node before the current node
      * @param node The node to insert

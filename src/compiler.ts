@@ -40,6 +40,7 @@ import { HoistArrayLengthTransformer } from "./transformers/HoistArrayLength";
 import { ForOfToIndexedTransformer } from "./transformers/ForOfToIndexed";
 import { InlineArrowToFunctionTransformer } from "./transformers/InlineArrowToFunction";
 import { AssignedArrowToFunctionTransformer } from "./transformers/AssignedArrowToFunction";
+import { UnchainMapToLoopTransformer } from "./transformers/InlineMapToFor";
 
 const TRANSFORMERS: NodeTransformer<any>[] = [
   ForEachToForTransformer,
@@ -51,6 +52,7 @@ const TRANSFORMERS: NodeTransformer<any>[] = [
   ForOfToIndexedTransformer,
   InlineArrowToFunctionTransformer,
   AssignedArrowToFunctionTransformer,
+  UnchainMapToLoopTransformer,
 ];
 
 function collectDeclaredVariables(ast: any): Set<string> {
@@ -113,7 +115,12 @@ export function compile(jsCode: string): CompiledProgram {
             replaceNode(from, to) {
               traverse(ast, {
                 enter(path) {
-                  if (path.node === from) {
+                  // Array
+                  if (Array.isArray(to)) {
+                    if (path.node === from) {
+                      path.replaceWithMultiple(to);
+                    }
+                  } else if (path.node === from) {
                     path.replaceWith(to);
                   }
                 },

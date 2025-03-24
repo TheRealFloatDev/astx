@@ -37,7 +37,6 @@ export const FusionLoopTransformer: NodeTransformer<t.VariableDeclarator> = {
     const steps: t.CallExpression[] = [];
     let current: t.Expression = node.init;
 
-    // 1. Walk and collect the entire chain (right to left)
     while (
       t.isCallExpression(current) &&
       t.isMemberExpression(current.callee)
@@ -47,134 +46,114 @@ export const FusionLoopTransformer: NodeTransformer<t.VariableDeclarator> = {
     }
 
     const input = current;
-    const chainLen = steps.length;
+    const x = context.helpers.generateUid("x");
+    const i = context.helpers.generateUid("i");
+    const resultId = node.id as t.Identifier;
 
-    // 2. Determine operations: map / filter / reduce
-    const fusedOps: {
-      type: "map" | "filter" | "reduce";
-      fn: t.FunctionExpression | t.ArrowFunctionExpression;
-      index: number;
-      raw: t.CallExpression;
-    }[] = [];
+    const body: t.Statement[] = [];
+    const hoisted: t.VariableDeclaration[] = [];
+    let finalExpr: t.Expression = resultId;
 
-    for (let i = 0; i < chainLen; i++) {
-      const call = steps[i];
+    let reduce: t.CallExpression | null = null;
+    let reduceFnId: t.Identifier | null = null;
+    let reduceInit: t.Expression | null = null;
+
+    const transforms: t.Statement[] = [];
+    let currentVal = t.identifier(x.name);
+
+    for (let idx = 0; idx < steps.length; idx++) {
+      const call = steps[idx];
       if (!t.isMemberExpression(call.callee)) continue;
-      const method = call.callee.property;
+      const prop = call.callee.property;
+      if (!t.isIdentifier(prop)) continue;
 
-      if (t.isIdentifier(method, { name: "map" }) && isFn(call.arguments[0])) {
-        fusedOps.push({
-          type: "map",
-          fn: call.arguments[0] as any,
-          index: i,
-          raw: call,
-        });
-      } else if (
-        t.isIdentifier(method, { name: "filter" }) &&
-        isFn(call.arguments[0])
-      ) {
-        fusedOps.push({
-          type: "filter",
-          fn: call.arguments[0] as any,
-          index: i,
-          raw: call,
-        });
-      } else if (
-        t.isIdentifier(method, { name: "reduce" }) &&
-        isFn(call.arguments[0]) &&
-        call.arguments.length === 2
-      ) {
-        fusedOps.push({
-          type: "reduce",
-          fn: call.arguments[0] as any,
-          index: i,
-          raw: call,
-        });
-        break; // Stop here, we fuse only up to reduce
+      const argFn = call.arguments[0];
+      const method = prop.name;
+
+      if ((method === "map" || method === "filter") && isFn(argFn)) {
+        const fnId = context.helpers.generateUid(`${method}Fn`);
+        hoisted.push(
+          t.variableDeclaration("const", [
+            t.variableDeclarator(fnId, argFn as any),
+          ])
+        );
+
+        if (method === "map") {
+          const mappedVal = t.callExpression(fnId, [currentVal]);
+          currentVal = context.helpers.generateUid("mapped");
+          transforms.push(
+            t.variableDeclaration("const", [
+              t.variableDeclarator(currentVal, mappedVal),
+            ])
+          );
+        } else if (method === "filter") {
+          transforms.push(
+            t.ifStatement(
+              t.unaryExpression("!", t.callExpression(fnId, [currentVal])),
+              t.continueStatement()
+            )
+          );
+        }
+      } else if (method === "reduce" && isFn(argFn)) {
+        reduce = call;
+        reduceFnId = context.helpers.generateUid("reducerFn");
+        reduceInit = call.arguments[1] as t.Expression;
+        hoisted.push(
+          t.variableDeclaration("const", [
+            t.variableDeclarator(reduceFnId, argFn as any),
+          ])
+        );
+        break;
       } else {
+        finalExpr = steps.slice(idx).reduce<t.Expression>((prev, s) => {
+          if (t.isMemberExpression(s.callee)) {
+            return t.callExpression(
+              t.memberExpression(prev, s.callee.property),
+              s.arguments as t.Expression[]
+            );
+          }
+          return prev;
+        }, resultId);
         break;
       }
     }
 
-    // Must end with reduce and have at least 1 map/filter before it
-    const reduce = findLast(fusedOps, (op) => op.type === "reduce");
-    if (!reduce || fusedOps.length < 2) return node;
-
-    const reduceIndex = fusedOps.indexOf(reduce);
-    const fused = fusedOps.slice(0, reduceIndex + 1);
-
-    const acc = context.helpers.generateUid("acc");
-    const i = context.helpers.generateUid("i");
-    const x = context.helpers.generateUid("x");
-
-    const reducerFnId = context.helpers.generateUid("reducerFn");
-
-    const hoistedFns: t.VariableDeclaration[] = [];
-    const reducerFn = reduce.fn;
-    const reducerInit = reduce.raw.arguments[1] as t.Expression;
-
-    // Hoist reducer
-    hoistedFns.push(
-      t.variableDeclaration("const", [
-        t.variableDeclarator(reducerFnId, reducerFn),
-      ])
-    );
-
-    const bodyStatements: t.Statement[] = [];
-
-    // let acc = initial;
-    bodyStatements.push(
-      t.variableDeclaration("let", [t.variableDeclarator(acc, reducerInit)])
-    );
-
-    // Build loop
     const loopBody: t.Statement[] = [];
-
-    // let x = input[i]
     loopBody.push(
       t.variableDeclaration("let", [
         t.variableDeclarator(x, t.memberExpression(input, i, true)),
       ])
     );
 
-    // Apply maps and filters before reduce
-    for (const op of fused) {
-      if (op.type === "map" && op !== reduce) {
-        const fnId = context.helpers.generateUid("mapFn");
-        hoistedFns.push(
-          t.variableDeclaration("const", [t.variableDeclarator(fnId, op.fn)])
-        );
-        loopBody.push(
-          t.expressionStatement(
-            t.assignmentExpression("=", x, t.callExpression(fnId, [x]))
+    loopBody.push(...transforms);
+
+    if (reduce && reduceFnId) {
+      loopBody.push(
+        t.expressionStatement(
+          t.assignmentExpression(
+            "=",
+            t.identifier(resultId.name),
+            t.callExpression(reduceFnId, [
+              t.identifier(resultId.name),
+              currentVal,
+            ])
           )
-        );
-      } else if (op.type === "filter") {
-        const fnId = context.helpers.generateUid("filterFn");
-        hoistedFns.push(
-          t.variableDeclaration("const", [t.variableDeclarator(fnId, op.fn)])
-        );
-        loopBody.push(
-          t.ifStatement(
-            t.unaryExpression("!", t.callExpression(fnId, [x])),
-            t.continueStatement()
+        )
+      );
+    } else {
+      loopBody.push(
+        t.expressionStatement(
+          t.callExpression(
+            t.memberExpression(
+              t.identifier(resultId.name),
+              t.identifier("push")
+            ),
+            [currentVal]
           )
-        );
-      }
+        )
+      );
     }
 
-    // Apply reduce: acc = reducerFn(acc, x)
-    loopBody.push(
-      t.expressionStatement(
-        t.assignmentExpression(
-          "=",
-          t.identifier(acc.name),
-          t.callExpression(reducerFnId, [t.identifier(acc.name), x])
-        )
-      )
-    );
-
-    // Loop
     const loop = t.forStatement(
       t.variableDeclaration("let", [
         t.variableDeclarator(i, t.numericLiteral(0)),
@@ -188,79 +167,60 @@ export const FusionLoopTransformer: NodeTransformer<t.VariableDeclarator> = {
       t.blockStatement(loopBody)
     );
 
-    bodyStatements.push(loop);
+    const block: t.Statement[] = [];
 
-    // Handle tail after reduce (e.g. .toString())
-    let resultExpr: t.Expression = t.identifier(acc.name);
-    for (let j = reduce.index + 1; j < steps.length; j++) {
-      const step = steps[j];
-      if (t.isMemberExpression(step.callee)) {
-        resultExpr = t.callExpression(
-          t.memberExpression(resultExpr, step.callee.property),
-          step.arguments as t.Expression[]
-        );
-      }
-    }
+    block.push(...hoisted);
 
-    const resultLet = t.variableDeclaration("let", [
-      t.variableDeclarator(node.id),
-    ]);
-
-    const finalAssign = t.expressionStatement(
-      t.assignmentExpression("=", node.id as t.LVal, resultExpr)
+    block.push(
+      t.variableDeclaration("let", [
+        t.variableDeclarator(
+          t.identifier(resultId.name),
+          reduce && reduceInit
+            ? reduceInit
+            : t.newExpression(t.identifier("Array"), [])
+        ),
+      ])
     );
 
-    // Replace with hoisted + block
-    context.helpers.replaceNode(context.parent!, [
-      resultLet,
-      t.blockStatement([...hoistedFns, ...bodyStatements, finalAssign]),
-    ]);
+    block.push(loop);
 
+    if (!(t.isIdentifier(finalExpr) && finalExpr.name === resultId.name)) {
+      block.push(
+        t.expressionStatement(
+          t.assignmentExpression("=", t.identifier(resultId.name), finalExpr)
+        )
+      );
+    }
+
+    const outerLet = t.variableDeclaration("let", [
+      t.variableDeclarator(resultId),
+    ]);
+    context.helpers.replaceNode(context.parent!, [
+      outerLet,
+      t.blockStatement(block),
+    ]);
     return null;
   },
 };
 
-// Helpers
+function isFn(n: any): n is t.ArrowFunctionExpression | t.FunctionExpression {
+  return t.isArrowFunctionExpression(n) || t.isFunctionExpression(n);
+}
 
 function isFusableChain(expr: t.Expression | null): boolean {
   if (!expr || !t.isCallExpression(expr)) return false;
 
   let current: t.Expression = expr;
-  let sawReduce = false;
   let count = 0;
-
   while (t.isCallExpression(current) && t.isMemberExpression(current.callee)) {
-    const prop = current.callee.property;
-    if (!t.isIdentifier(prop)) break;
-
-    if (["map", "filter", "reduce"].includes(prop.name)) {
+    const method = current.callee.property;
+    if (!t.isIdentifier(method)) return false;
+    if (["map", "filter", "reduce"].includes(method.name)) {
       count++;
-      if (prop.name === "reduce") sawReduce = true;
       current = current.callee.object;
     } else {
       break;
     }
   }
-
-  return sawReduce && count >= 2;
-}
-
-function isFn(
-  node: unknown
-): node is t.FunctionExpression | t.ArrowFunctionExpression {
-  if (!node) return false;
-  if (!t.isNode(node)) return false;
-
-  if (!t.isFunctionExpression(node) && !t.isArrowFunctionExpression(node)) {
-    return false;
-  }
-
-  return t.isFunctionExpression(node) || t.isArrowFunctionExpression(node);
-}
-
-function findLast<T>(arr: T[], predicate: (item: T) => boolean): T | undefined {
-  for (let i = arr.length - 1; i >= 0; i--) {
-    if (predicate(arr[i])) return arr[i];
-  }
-  return undefined;
+  return count >= 1;
 }

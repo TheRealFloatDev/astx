@@ -1,27 +1,10 @@
-/*
- *   Copyright (c) 2025 Alexander Neitzel
-
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
-
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
-
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 import * as t from "@babel/types";
 import { NodeTransformer } from "./transformers";
 
 export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarator> =
   {
     key: "reduce-unchain-to-loop",
-    displayName: "Unchain .reduce() with Loop (Chain Safe)",
+    displayName: "Unchain .reduce() with Loop (Hoisted)",
     nodeTypes: ["VariableDeclarator"],
     phases: ["main"],
 
@@ -62,12 +45,14 @@ export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarato
 
       const acc = context.helpers.generateUid("acc");
       const i = context.helpers.generateUid("i");
+      const reducerId = context.helpers.generateUid("reducerFn");
       const preReduceTemp = context.helpers.generateUid("tmp_chain");
 
       const bodyStatements: t.Statement[] = [];
 
       let arrayToReduce: t.Identifier | t.Expression = arrayExpr;
 
+      // 🧠 Optional pre-reduce chain
       if (reduceIndex > 0) {
         const preReduceExpr = t.callExpression(
           chain.slice(0, reduceIndex).reduce((obj, call) => {
@@ -82,7 +67,6 @@ export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarato
           []
         );
 
-        // Create const tmp_chain = <map/filter/...>;
         bodyStatements.push(
           t.variableDeclaration("const", [
             t.variableDeclarator(preReduceTemp, preReduceExpr),
@@ -92,27 +76,19 @@ export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarato
         arrayToReduce = preReduceTemp;
       }
 
-      const reducerArgs = [
-        t.identifier(acc.name),
-        t.memberExpression(arrayToReduce, i, true),
-      ];
+      // ✅ Hoist reducer function
+      bodyStatements.push(
+        t.variableDeclaration("const", [
+          t.variableDeclarator(reducerId, reducerFn),
+        ])
+      );
 
-      const reducerCallExpr = t.isBlockStatement(reducerFn.body)
-        ? t.callExpression(
-            t.functionExpression(null, reducerFn.params, reducerFn.body),
-            reducerArgs
-          )
-        : t.callExpression(
-            t.arrowFunctionExpression(reducerFn.params, reducerFn.body),
-            reducerArgs
-          );
-
-      // let acc = initial;
+      // let acc = <init>
       bodyStatements.push(
         t.variableDeclaration("let", [t.variableDeclarator(acc, initialValue)])
       );
 
-      // for loop: acc = ...
+      // for (...) acc = reducerFn(acc, array[i])
       const loop = t.forStatement(
         t.variableDeclaration("let", [
           t.variableDeclarator(i, t.numericLiteral(0)),
@@ -125,15 +101,22 @@ export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarato
         t.updateExpression("++", i),
         t.blockStatement([
           t.expressionStatement(
-            t.assignmentExpression("=", acc, reducerCallExpr)
+            t.assignmentExpression(
+              "=",
+              t.identifier(acc.name),
+              t.callExpression(reducerId, [
+                t.identifier(acc.name),
+                t.memberExpression(arrayToReduce, i, true),
+              ])
+            )
           ),
         ])
       );
 
       bodyStatements.push(loop);
 
-      // Apply tail calls (e.g. .toString())
-      let resultExpr: t.Expression = acc;
+      // Handle tail expressions
+      let resultExpr: t.Expression = t.identifier(acc.name);
       for (let j = reduceIndex + 1; j < chain.length; j++) {
         const call = chain[j];
         resultExpr = t.callExpression(
@@ -145,10 +128,12 @@ export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarato
         );
       }
 
+      // let result;
       const resultLet = t.variableDeclaration("let", [
         t.variableDeclarator(node.id),
       ]);
 
+      // result = acc;
       const finalAssign = t.expressionStatement(
         t.assignmentExpression("=", node.id as t.LVal, resultExpr)
       );

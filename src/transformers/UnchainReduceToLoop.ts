@@ -53,6 +53,7 @@ export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarato
       );
 
       if (reduceIndex === -1) return node;
+
       const reduceCall = chain[reduceIndex];
       const reducerFn = reduceCall.arguments[0] as
         | t.FunctionExpression
@@ -61,28 +62,39 @@ export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarato
 
       const acc = context.helpers.generateUid("acc");
       const i = context.helpers.generateUid("i");
-
-      const preReduceExpr =
-        reduceIndex === 0
-          ? arrayExpr
-          : t.callExpression(
-              chain.slice(0, reduceIndex).reduce((obj, call) => {
-                return t.callExpression(
-                  t.memberExpression(
-                    obj,
-                    (call.callee as t.MemberExpression).property
-                  ),
-                  call.arguments as t.Expression[]
-                );
-              }, arrayExpr),
-              []
-            );
-
       const preReduceTemp = context.helpers.generateUid("tmp_chain");
+
+      const bodyStatements: t.Statement[] = [];
+
+      let arrayToReduce: t.Identifier | t.Expression = arrayExpr;
+
+      if (reduceIndex > 0) {
+        const preReduceExpr = t.callExpression(
+          chain.slice(0, reduceIndex).reduce((obj, call) => {
+            return t.callExpression(
+              t.memberExpression(
+                obj,
+                (call.callee as t.MemberExpression).property
+              ),
+              call.arguments as t.Expression[]
+            );
+          }, arrayExpr),
+          []
+        );
+
+        // Create const tmp_chain = <map/filter/...>;
+        bodyStatements.push(
+          t.variableDeclaration("const", [
+            t.variableDeclarator(preReduceTemp, preReduceExpr),
+          ])
+        );
+
+        arrayToReduce = preReduceTemp;
+      }
 
       const reducerArgs = [
         t.identifier(acc.name),
-        t.memberExpression(preReduceTemp, i, true),
+        t.memberExpression(arrayToReduce, i, true),
       ];
 
       const reducerCallExpr = t.isBlockStatement(reducerFn.body)
@@ -95,6 +107,12 @@ export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarato
             reducerArgs
           );
 
+      // let acc = initial;
+      bodyStatements.push(
+        t.variableDeclaration("let", [t.variableDeclarator(acc, initialValue)])
+      );
+
+      // for loop: acc = ...
       const loop = t.forStatement(
         t.variableDeclaration("let", [
           t.variableDeclarator(i, t.numericLiteral(0)),
@@ -102,7 +120,7 @@ export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarato
         t.binaryExpression(
           "<",
           i,
-          t.memberExpression(preReduceTemp, t.identifier("length"))
+          t.memberExpression(arrayToReduce, t.identifier("length"))
         ),
         t.updateExpression("++", i),
         t.blockStatement([
@@ -112,28 +130,12 @@ export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarato
         ])
       );
 
-      const bodyStatements: t.Statement[] = [];
-
-      // Declare pre-reduce temp if there's a chain
-      if (reduceIndex > 0) {
-        bodyStatements.push(
-          t.variableDeclaration("const", [
-            t.variableDeclarator(preReduceTemp, preReduceExpr),
-          ])
-        );
-      }
-
-      // let acc = init;
-      bodyStatements.push(
-        t.variableDeclaration("let", [t.variableDeclarator(acc, initialValue)])
-      );
-
       bodyStatements.push(loop);
 
-      // Handle tail calls after reduce
+      // Apply tail calls (e.g. .toString())
       let resultExpr: t.Expression = acc;
-      for (let i = reduceIndex + 1; i < chain.length; i++) {
-        const call = chain[i];
+      for (let j = reduceIndex + 1; j < chain.length; j++) {
+        const call = chain[j];
         resultExpr = t.callExpression(
           t.memberExpression(
             resultExpr,

@@ -48,6 +48,8 @@ export const MINIMAL_AST_KEYS: Record<string, string[]> = {
   VariableDeclaration: ["declarations", "kind"],
   VariableDeclarator: ["id", "init"],
   FunctionDeclaration: ["id", "params", "body", "generator", "async"],
+  ExportNamedDeclaration: ["declaration", "specifiers", "source"],
+  ExportDefaultDeclaration: ["declaration"],
 
   // Expressions
   BinaryExpression: ["left", "operator", "right"],

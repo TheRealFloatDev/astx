@@ -18,34 +18,57 @@
 import * as t from "@babel/types";
 import { NodeTransformer, TransformContext } from "./transformers";
 
-export const RestoreExportedNamesTransformer: NodeTransformer<t.ExportNamedDeclaration> =
-  {
-    key: "restore-exported-names",
-    displayName: "Restore names of exported declarations",
-    nodeTypes: ["ExportNamedDeclaration"],
-    phases: ["post"],
+export const RestoreExportedNamesTransformer: NodeTransformer<
+  t.ExportNamedDeclaration | t.ExportSpecifier
+> = {
+  key: "restore-exported-names",
+  displayName: "Restore names of exported declarations",
+  nodeTypes: ["ExportNamedDeclaration", "ExportSpecifier"],
+  phases: ["post"],
 
-    test: () => true,
+  test: () => true,
 
-    transform(node, context: TransformContext): t.ExportNamedDeclaration {
-      if (!node.declaration) return node;
+  transform(
+    node,
+    context: TransformContext
+  ): t.ExportNamedDeclaration | t.ExportSpecifier {
+    if (t.isExportSpecifier(node)) {
+      return transformExportSpecifier(node, context);
+    } else {
+      return transformExportedName(node, context);
+    }
+  },
+};
 
-      /* 
-        We want to get the original name of the declaration and remove it from the declared variables
-        */
-      if (
-        t.isFunctionDeclaration(node.declaration) &&
-        t.isIdentifier(node.declaration.id)
-      ) {
-        context.declaredVars.delete(node.declaration.id.name);
-      } else if (t.isVariableDeclaration(node.declaration)) {
-        for (const declaration of node.declaration.declarations) {
-          if (t.isIdentifier(declaration.id)) {
-            context.declaredVars.delete(declaration.id.name);
-          }
-        }
+function transformExportedName(
+  node: t.ExportNamedDeclaration,
+  context: TransformContext
+): t.ExportNamedDeclaration {
+  if (!node.declaration) return node;
+
+  if (
+    t.isFunctionDeclaration(node.declaration) &&
+    t.isIdentifier(node.declaration.id)
+  ) {
+    context.declaredVars.delete(node.declaration.id.name);
+  } else if (t.isVariableDeclaration(node.declaration)) {
+    for (const declaration of node.declaration.declarations) {
+      if (t.isIdentifier(declaration.id)) {
+        context.declaredVars.delete(declaration.id.name);
       }
+    }
+  }
 
-      return node;
-    },
-  };
+  return node;
+}
+
+function transformExportSpecifier(
+  node: t.ExportSpecifier,
+  context: TransformContext
+): t.ExportSpecifier {
+  if (t.isIdentifier(node.exported)) {
+    context.declaredVars.delete(node.exported.name);
+  }
+
+  return node;
+}

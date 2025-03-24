@@ -1,10 +1,27 @@
+/*
+ *   Copyright (c) 2025 Alexander Neitzel
+
+ *   This program is free software: you can redistribute it and/or modify
+ *   it under the terms of the GNU General Public License as published by
+ *   the Free Software Foundation, either version 3 of the License, or
+ *   (at your option) any later version.
+
+ *   This program is distributed in the hope that it will be useful,
+ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *   GNU General Public License for more details.
+
+ *   You should have received a copy of the GNU General Public License
+ *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
 import * as t from "@babel/types";
-import { NodeTransformer, TransformContext } from "./transformers";
+import { NodeTransformer } from "./transformers";
 
 export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarator> =
   {
     key: "reduce-unchain-to-loop",
-    displayName: "Unchain .reduce() to Manual Loop with Tail Calls",
+    displayName: "Unchain .reduce() with Loop (Chain Safe)",
     nodeTypes: ["VariableDeclarator"],
     phases: ["main"],
 
@@ -13,12 +30,13 @@ export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarato
     },
 
     transform(node, context) {
-      if (!node.init || !t.isCallExpression(node.init)) return node;
+      const init = node.init;
+      if (!init || !t.isCallExpression(init)) return node;
 
       const chain: t.CallExpression[] = [];
-      let current: t.Expression = node.init;
+      let current: t.Expression = init;
 
-      // Collect call chain: reduce(...).toString().trim()...
+      // Walk call chain left to right
       while (
         t.isCallExpression(current) &&
         t.isMemberExpression(current.callee)
@@ -27,35 +45,53 @@ export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarato
         current = current.callee.object;
       }
 
-      const arrayExpr = current; // input
-
+      const arrayExpr = current;
       const reduceIndex = chain.findIndex(
-        (call) =>
-          t.isMemberExpression(call.callee) &&
-          t.isIdentifier(call.callee.property, { name: "reduce" })
+        (c) =>
+          t.isMemberExpression(c.callee) &&
+          t.isIdentifier(c.callee.property, { name: "reduce" })
       );
 
       if (reduceIndex === -1) return node;
-
       const reduceCall = chain[reduceIndex];
-      const reducer = reduceCall.arguments[0] as
+      const reducerFn = reduceCall.arguments[0] as
         | t.FunctionExpression
         | t.ArrowFunctionExpression;
-      const initial = reduceCall.arguments[1] as t.Expression;
+      const initialValue = reduceCall.arguments[1] as t.Expression;
 
       const acc = context.helpers.generateUid("acc");
       const i = context.helpers.generateUid("i");
 
-      const elAccess = t.memberExpression(arrayExpr, i, true);
-      const reducerArgs = [acc, elAccess];
+      const preReduceExpr =
+        reduceIndex === 0
+          ? arrayExpr
+          : t.callExpression(
+              chain.slice(0, reduceIndex).reduce((obj, call) => {
+                return t.callExpression(
+                  t.memberExpression(
+                    obj,
+                    (call.callee as t.MemberExpression).property
+                  ),
+                  call.arguments as t.Expression[]
+                );
+              }, arrayExpr),
+              []
+            );
 
-      const reducerCall = t.isBlockStatement(reducer.body)
+      const preReduceTemp = context.helpers.generateUid("tmp_chain");
+
+      const reducerArgs = [
+        t.identifier(acc.name),
+        t.memberExpression(preReduceTemp, i, true),
+      ];
+
+      const reducerCallExpr = t.isBlockStatement(reducerFn.body)
         ? t.callExpression(
-            t.functionExpression(null, reducer.params, reducer.body),
+            t.functionExpression(null, reducerFn.params, reducerFn.body),
             reducerArgs
           )
         : t.callExpression(
-            t.arrowFunctionExpression(reducer.params, reducer.body),
+            t.arrowFunctionExpression(reducerFn.params, reducerFn.body),
             reducerArgs
           );
 
@@ -66,25 +102,35 @@ export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarato
         t.binaryExpression(
           "<",
           i,
-          t.memberExpression(arrayExpr, t.identifier("length"))
+          t.memberExpression(preReduceTemp, t.identifier("length"))
         ),
         t.updateExpression("++", i),
         t.blockStatement([
-          t.expressionStatement(t.assignmentExpression("=", acc, reducerCall)),
+          t.expressionStatement(
+            t.assignmentExpression("=", acc, reducerCallExpr)
+          ),
         ])
       );
 
-      const statements: t.Statement[] = [];
+      const bodyStatements: t.Statement[] = [];
 
-      // let acc = initial;
-      statements.push(
-        t.variableDeclaration("let", [t.variableDeclarator(acc, initial)])
+      // Declare pre-reduce temp if there's a chain
+      if (reduceIndex > 0) {
+        bodyStatements.push(
+          t.variableDeclaration("const", [
+            t.variableDeclarator(preReduceTemp, preReduceExpr),
+          ])
+        );
+      }
+
+      // let acc = init;
+      bodyStatements.push(
+        t.variableDeclaration("let", [t.variableDeclarator(acc, initialValue)])
       );
 
-      // for (...)
-      statements.push(loop);
+      bodyStatements.push(loop);
 
-      // Rebuild remaining calls (tail)
+      // Handle tail calls after reduce
       let resultExpr: t.Expression = acc;
       for (let i = reduceIndex + 1; i < chain.length; i++) {
         const call = chain[i];
@@ -97,19 +143,17 @@ export const UnchainReduceToLoopTransformer: NodeTransformer<t.VariableDeclarato
         );
       }
 
-      // let result;
       const resultLet = t.variableDeclaration("let", [
         t.variableDeclarator(node.id),
       ]);
 
-      // result = finalExpr;
-      const assign = t.expressionStatement(
+      const finalAssign = t.expressionStatement(
         t.assignmentExpression("=", node.id as t.LVal, resultExpr)
       );
 
       context.helpers.replaceNode(context.parent!, [
         resultLet,
-        t.blockStatement([...statements, assign]),
+        t.blockStatement([...bodyStatements, finalAssign]),
       ]);
 
       return null;

@@ -40,7 +40,7 @@ import { HoistArrayLengthTransformer } from "./transformers/HoistArrayLength";
 import { ForOfToIndexedTransformer } from "./transformers/ForOfToIndexed";
 import { InlineArrowToFunctionTransformer } from "./transformers/InlineArrowToFunction";
 import { AssignedArrowToFunctionTransformer } from "./transformers/AssignedArrowToFunction";
-import { UnchainMapToLoopTransformer } from "./transformers/InlineMapToFor";
+import { UnchainMapToLoopTransformer } from "./transformers/UnchainMapToLoop";
 import { UnchainFilterToLoopTransformer } from "./transformers/UnchainFilterToLoop";
 
 const TRANSFORMERS: NodeTransformer<any>[] = [

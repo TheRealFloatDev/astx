@@ -43,6 +43,7 @@ import { AssignedArrowToFunctionTransformer } from "./transformers/AssignedArrow
 import { UnchainMapToLoopTransformer } from "./transformers/UnchainMapToLoop";
 import { UnchainFilterToLoopTransformer } from "./transformers/UnchainFilterToLoop";
 import { UnchainReduceToLoopTransformer } from "./transformers/UnchainReduceToLoop";
+import { FusionLoopTransformer } from "./transformers/FusionLoop";
 
 const TRANSFORMERS: NodeTransformer<any>[] = [
   ForEachToForTransformer,
@@ -57,6 +58,7 @@ const TRANSFORMERS: NodeTransformer<any>[] = [
   UnchainMapToLoopTransformer,
   UnchainFilterToLoopTransformer,
   UnchainReduceToLoopTransformer,
+  FusionLoopTransformer,
 ];
 
 function collectDeclaredVariables(ast: any): Set<string> {

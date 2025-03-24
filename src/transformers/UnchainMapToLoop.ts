@@ -26,7 +26,7 @@ export const UnchainMapToLoopTransformer: NodeTransformer<t.VariableDeclarator> 
     phases: ["main"],
 
     test(node) {
-      return t.isVariableDeclarator(node) && isMapCall(node.init);
+      return t.isVariableDeclarator(node) && containsMapCall(node.init);
     },
 
     transform(node, context) {
@@ -158,13 +158,20 @@ export const UnchainMapToLoopTransformer: NodeTransformer<t.VariableDeclarator> 
     },
   };
 
-function isMapCall(expr?: t.Expression | null): boolean {
-  return (
-    !!expr &&
-    t.isCallExpression(expr) &&
-    t.isMemberExpression(expr.callee) &&
-    t.isIdentifier(expr.callee.property, { name: "map" }) &&
-    (t.isArrowFunctionExpression(expr.arguments[0]) ||
-      t.isFunctionExpression(expr.arguments[0]))
-  );
+function containsMapCall(expr?: t.Expression | null): boolean {
+  if (!expr || !t.isCallExpression(expr)) return false;
+
+  let current: t.Expression = expr;
+  while (t.isCallExpression(current) && t.isMemberExpression(current.callee)) {
+    if (
+      t.isIdentifier(current.callee.property, { name: "map" }) &&
+      (t.isArrowFunctionExpression(current.arguments[0]) ||
+        t.isFunctionExpression(current.arguments[0]))
+    ) {
+      return true;
+    }
+    current = current.callee.object;
+  }
+
+  return false;
 }

@@ -63,13 +63,13 @@ export interface TransformContext {
      * @param node The node to insert
      * @returns void
      */
-    insertBefore?: (node: t.Node) => void;
+    insertBefore: (node: t.Node) => void;
     /**
      * Inserts a node after the current node
      * @param node The node to insert
      * @returns void
      */
-    insertAfter?: (node: t.Node) => void;
+    insertAfter: (node: t.Node) => void;
   };
 
   /**

@@ -41,6 +41,7 @@ import { ForOfToIndexedTransformer } from "./transformers/ForOfToIndexed";
 import { InlineArrowToFunctionTransformer } from "./transformers/InlineArrowToFunction";
 import { AssignedArrowToFunctionTransformer } from "./transformers/AssignedArrowToFunction";
 import { UnchainMapToLoopTransformer } from "./transformers/InlineMapToFor";
+import { UnchainFilterToLoopTransformer } from "./transformers/UnchainFilterToLoop";
 
 const TRANSFORMERS: NodeTransformer<any>[] = [
   ForEachToForTransformer,
@@ -53,6 +54,7 @@ const TRANSFORMERS: NodeTransformer<any>[] = [
   InlineArrowToFunctionTransformer,
   AssignedArrowToFunctionTransformer,
   UnchainMapToLoopTransformer,
+  UnchainFilterToLoopTransformer,
 ];
 
 function collectDeclaredVariables(ast: any): Set<string> {

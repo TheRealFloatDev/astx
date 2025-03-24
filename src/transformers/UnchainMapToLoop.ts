@@ -1,27 +1,10 @@
-/*
- *   Copyright (c) 2025 Alexander Neitzel
-
- *   This program is free software: you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, either version 3 of the License, or
- *   (at your option) any later version.
-
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
-
- *   You should have received a copy of the GNU General Public License
- *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
- */
-
 import * as t from "@babel/types";
 import { NodeTransformer } from "./transformers";
 
 export const UnchainMapToLoopTransformer: NodeTransformer<t.VariableDeclarator> =
   {
     key: "map-unchain-to-loop",
-    displayName: "Unchain .map() to Preallocated Loops (Scoped)",
+    displayName: "Unchain .map() to Preallocated Loops (Scoped, Hoisted)",
     nodeTypes: ["VariableDeclarator"],
     phases: ["main"],
 
@@ -35,7 +18,6 @@ export const UnchainMapToLoopTransformer: NodeTransformer<t.VariableDeclarator> 
       const chain: t.Expression[] = [];
       let current: t.Expression = node.init;
 
-      // Walk the chain: input.map(...).filter(...).map(...) etc.
       while (
         t.isCallExpression(current) &&
         t.isMemberExpression(current.callee)
@@ -46,10 +28,10 @@ export const UnchainMapToLoopTransformer: NodeTransformer<t.VariableDeclarator> 
 
       const inputExpr = current;
       const statements: t.Statement[] = [];
+      const hoistedFns: t.VariableDeclaration[] = [];
       let prev = inputExpr;
       let lastTemp: t.Identifier | null = null;
 
-      // Walk the call chain in order
       chain.forEach((callExpr, i) => {
         if (!t.isCallExpression(callExpr)) return;
         const callee = callExpr.callee as t.MemberExpression;
@@ -62,33 +44,22 @@ export const UnchainMapToLoopTransformer: NodeTransformer<t.VariableDeclarator> 
           (t.isArrowFunctionExpression(callExpr.arguments[0]) ||
             t.isFunctionExpression(callExpr.arguments[0]))
         ) {
-          const fn = callExpr.arguments[0] as
-            | t.ArrowFunctionExpression
-            | t.FunctionExpression;
+          const originalFn = callExpr.arguments[0] as
+            | t.FunctionExpression
+            | t.ArrowFunctionExpression;
+          const fnId = context.helpers.generateUid(`mapFn${i}`);
           const tmp = context.helpers.generateUid(`tmp${i + 1}`);
           const index = context.helpers.generateUid("i");
-
           const inputLen = t.memberExpression(prev, t.identifier("length"));
-          const mapFnArgs = [t.memberExpression(prev, index, true)];
 
-          if (fn.params.length > 1) {
-            // mapFnArgs.push(index);
-            mapFnArgs.push(
-              t.memberExpression(t.identifier("i"), t.numericLiteral(0), true)
-            );
-          }
+          // Hoist: const mapFnN = (x) => ...
+          hoistedFns.push(
+            t.variableDeclaration("const", [
+              t.variableDeclarator(fnId, originalFn),
+            ])
+          );
 
-          const mapCall = t.isBlockStatement(fn.body)
-            ? t.callExpression(
-                t.functionExpression(null, fn.params, fn.body),
-                mapFnArgs
-              )
-            : t.callExpression(
-                t.arrowFunctionExpression(fn.params, fn.body),
-                mapFnArgs
-              );
-
-          // const tmpN = new Array(prev.length);
+          // Create: const tmpN = new Array(prev.length)
           statements.push(
             t.variableDeclaration("const", [
               t.variableDeclarator(
@@ -98,7 +69,11 @@ export const UnchainMapToLoopTransformer: NodeTransformer<t.VariableDeclarator> 
             ])
           );
 
-          // for (let i = 0; i < prev.length; i++) { tmp[i] = ... }
+          // Call: tmp[i] = mapFn(input[i])
+          const mapCall = t.callExpression(fnId, [
+            t.memberExpression(prev, index, true),
+          ]);
+
           statements.push(
             t.forStatement(
               t.variableDeclaration("let", [
@@ -121,7 +96,7 @@ export const UnchainMapToLoopTransformer: NodeTransformer<t.VariableDeclarator> 
           prev = tmp;
           lastTemp = tmp;
         } else {
-          // Not a .map() – apply directly and assign to new const
+          // Any non-map call like .filter(), .slice(), etc.
           const tmp = context.helpers.generateUid(`tmp${i + 1}`);
           const replaced = t.callExpression(
             t.memberExpression(prev, method),
@@ -139,7 +114,7 @@ export const UnchainMapToLoopTransformer: NodeTransformer<t.VariableDeclarator> 
         }
       });
 
-      // Assign final result = lastTemp;
+      // Final assignment
       statements.push(
         t.expressionStatement(
           t.assignmentExpression("=", node.id as t.LVal, lastTemp!)
@@ -150,7 +125,7 @@ export const UnchainMapToLoopTransformer: NodeTransformer<t.VariableDeclarator> 
         t.variableDeclarator(node.id),
       ]);
 
-      const block = t.blockStatement(statements);
+      const block = t.blockStatement([...hoistedFns, ...statements]);
 
       context.helpers.replaceNode(context.parent!, [resultLet, block]);
 

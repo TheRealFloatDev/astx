@@ -124,6 +124,7 @@ export const MINIMAL_AST_KEYS: Record<string, string[]> = {
   null: [],
   CatchClause: ["param", "body"],
   Super: [],
+  ExportSpecifier: ["local", "exported"],
 };
 
 export { compile, saveToFile } from "./compiler.js";

@@ -26,7 +26,6 @@ import { gunzipSync } from "zlib";
 import { readFileSync } from "fs";
 import generate from "@babel/generator";
 import { templateElement } from "@babel/types";
-import { createRequire } from "module";
 import path from "path";
 
 const RESERVED_WORDS = new Set([

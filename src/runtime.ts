@@ -15,7 +15,7 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { decode } from "@msgpack/msgpack";
+import { decode as msgpackDecode } from "@msgpack/msgpack";
 import {
   CompiledProgram,
   FORMAT_VERSION,
@@ -129,7 +129,7 @@ export function loadFromFile(filename: string): CompiledProgram {
   }
 
   const compressed = file.subarray(5);
-  const decoded = decode(Buffer.from(decompress(compressed)));
+  const decoded = msgpackDecode(Buffer.from(decompress(compressed)));
   const [expressionDict, valueDict, bytecode] = decoded as [
     string[],
     any[],

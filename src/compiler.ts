@@ -15,7 +15,7 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import { encode } from "@msgpack/msgpack";
+import { encode as msgPackEncode } from "@msgpack/msgpack";
 import {
   CompiledProgram,
   FORMAT_VERSION,
@@ -275,7 +275,7 @@ export function compile(jsCode: string): CompiledProgram {
 }
 
 export function saveToFile(program: CompiledProgram, filename: string) {
-  const encoded = encode([
+  const encoded = msgPackEncode([
     program.expressionDict,
     program.valueDict,
     program.bytecode,

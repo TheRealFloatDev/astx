@@ -22,7 +22,7 @@ import {
   MAGIC_HEADER,
   MINIMAL_AST_KEYS,
 } from ".";
-import { gunzipSync } from "zlib";
+import { decompress } from "brotli";
 import { readFileSync } from "fs";
 import generate from "@babel/generator";
 import { templateElement } from "@babel/types";
@@ -129,7 +129,7 @@ export function loadFromFile(filename: string): CompiledProgram {
   }
 
   const compressed = file.subarray(5);
-  const decoded = decode(gunzipSync(compressed));
+  const decoded = decode(Buffer.from(decompress(compressed)));
   const [expressionDict, valueDict, bytecode] = decoded as [
     string[],
     any[],

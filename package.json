@@ -1,6 +1,6 @@
 {
   "name": "@astx/lib",
-  "version": "1.4.0",
+  "version": "1.5.0-beta.1",
   "description": "Compiler & Runtime library for a tiny JS AST based binary file format",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -16,6 +16,7 @@
   "author": "Alexander Neitzel",
   "license": "GPL-3.0-only",
   "devDependencies": {
+    "@types/brotli": "^1.3.4",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.13.11",
     "jest": "^29.7.0",
@@ -28,7 +29,8 @@
     "@babel/generator": "^7.26.10",
     "@babel/parser": "^7.26.10",
     "@babel/traverse": "^7.26.10",
-    "@msgpack/msgpack": "^3.1.1"
+    "@msgpack/msgpack": "^3.1.1",
+    "brotli": "^1.3.3"
   },
   "repository": {
     "type": "git",

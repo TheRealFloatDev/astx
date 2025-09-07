@@ -28,7 +28,7 @@ import {
   TransformContext,
 } from "./transformers/transformers.js";
 import * as babelParser from "@babel/parser";
-import { gzipSync } from "zlib";
+import { compress } from "brotli";
 import { writeFileSync } from "fs";
 import { ForEachToForTransformer } from "./transformers/ForEachToForLoop";
 import traverse from "@babel/traverse";
@@ -282,7 +282,7 @@ export function saveToFile(program: CompiledProgram, filename: string) {
   ]);
   const magic = MAGIC_HEADER; // custom magic header
   const version = FORMAT_VERSION; // format version
-  const compressed = gzipSync(encoded);
+  const compressed = Buffer.from(compress(Buffer.from(encoded)));
   const full = Buffer.concat([magic, version, compressed]);
   writeFileSync(filename, full);
 }

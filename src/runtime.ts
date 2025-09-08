@@ -111,8 +111,12 @@ function generateShortName(index: number): string {
 
 export function loadFromFile(filename: string): CompiledProgram {
   const file = readFileSync(filename);
-  const magic = file.subarray(0, 4);
-  const version = file[4];
+  return loadFromBuffer(file);
+}
+
+export function loadFromBuffer(buffer: Buffer): CompiledProgram {
+  const magic = buffer.subarray(0, 4);
+  const version = buffer[4];
 
   if (
     magic[0] !== MAGIC_HEADER[0] ||
@@ -128,7 +132,7 @@ export function loadFromFile(filename: string): CompiledProgram {
     );
   }
 
-  const compressed = file.subarray(5);
+  const compressed = buffer.subarray(5);
   const decoded = msgpackDecode(Buffer.from(decompress(compressed)));
   const [expressionDict, valueDict, bytecode] = decoded as [
     string[],

@@ -1,6 +1,6 @@
 {
   "name": "@astx/lib",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Compiler & Runtime library for a tiny JS AST based binary file format",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

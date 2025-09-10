@@ -1,10 +1,17 @@
 {
   "name": "@astx/lib",
-  "version": "1.9.4",
+  "version": "1.9.5",
   "description": "Compiler & Runtime library for a tiny JS AST based binary file format",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "@astx/lib/*": [
+        "dist/*"
+      ]
+    }
+  },
   "files": [
     "dist"
   ],

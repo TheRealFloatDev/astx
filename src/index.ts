@@ -127,7 +127,7 @@ export const MINIMAL_AST_KEYS: Record<string, string[]> = {
   ExportSpecifier: ["local", "exported"],
 };
 
-export { compile } from "./compiler.js";
+export { compile, saveToFile } from "./compiler.js";
 export { loadFromFile } from "./loader/file.js";
 export { loadFromBuffer } from "./loader/buffer.js";
 export { generateJSCode } from "./loader/shared.js";

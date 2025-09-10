@@ -1,6 +1,6 @@
 {
   "name": "@astx/lib",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "description": "Compiler & Runtime library for a tiny JS AST based binary file format",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -10,29 +10,54 @@
   ],
   "exports": {
     "./compiler": {
-      "import": "./dist/compiler.mjs",
-      "require": "./dist/compiler.js",
-      "types": "./dist/compiler.d.ts"
+      "import": {
+        "types": "./dist/compiler/index.d.ts",
+        "default": "./dist/compiler/index.mjs"
+      },
+      "require": {
+        "types": "./dist/compiler/index.d.ts",
+        "default": "./dist/compiler/index.js"
+      }
     },
     "./loader/buffer": {
-      "import": "./dist/loader/buffer.mjs",
-      "require": "./dist/loader/buffer.js",
-      "types": "./dist/loader/buffer.d.ts"
+      "import": {
+        "types": "./dist/loader/buffer.d.ts",
+        "default": "./dist/loader/buffer.mjs"
+      },
+      "require": {
+        "types": "./dist/loader/buffer.d.ts",
+        "default": "./dist/loader/buffer.js"
+      }
     },
     "./loader/file": {
-      "import": "./dist/loader/file.mjs",
-      "require": "./dist/loader/file.js",
-      "types": "./dist/loader/file.d.ts"
+      "import": {
+        "types": "./dist/loader/file.d.ts",
+        "default": "./dist/loader/file.mjs"
+      },
+      "require": {
+        "types": "./dist/loader/file.d.ts",
+        "default": "./dist/loader/file.js"
+      }
     },
     "./runtime": {
-      "import": "./dist/runtime/default.mjs",
-      "require": "./dist/runtime/default.js",
-      "types": "./dist/runtime/default.d.ts"
+      "import": {
+        "types": "./dist/runtime/index.d.ts",
+        "default": "./dist/runtime/index.mjs"
+      },
+      "require": {
+        "types": "./dist/runtime/index.d.ts",
+        "default": "./dist/runtime/index.js"
+      }
     },
     "./runtime/safe": {
-      "import": "./dist/runtime/safe.mjs",
-      "require": "./dist/runtime/safe.js",
-      "types": "./dist/runtime/safe.d.ts"
+      "import": {
+        "types": "./dist/runtime/safe.d.ts",
+        "default": "./dist/runtime/safe.mjs"
+      },
+      "require": {
+        "types": "./dist/runtime/safe.d.ts",
+        "default": "./dist/runtime/safe.js"
+      }
     }
   },
   "scripts": {

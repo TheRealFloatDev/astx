@@ -17,7 +17,7 @@
 
 import path from "path";
 import { CompiledProgram } from "..";
-import { generateJSCode } from "../loader";
+import { generateJSCode } from "../loader/shared";
 
 type RunMode = "eval" | "scoped" | "vm";
 

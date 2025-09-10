@@ -15,24 +15,11 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import { readFileSync } from "fs";
 import { CompiledProgram } from "..";
-import { generateJSCode } from "../loader/shared";
+import { loadFromBuffer } from "./buffer";
 
-/**
- * Safely runs a compiled program with error handling.
- *
- * Compared to the `run` function, this function does not support any different modes or dependency/context injection.
- *
- * @param compiled The compiled program
- * @returns The result of the program
- */
-export function safeRun(compiled: CompiledProgram) {
-  const code = generateJSCode(compiled);
-
-  try {
-    return eval(code);
-  } catch (error) {
-    console.error("[ASTX Runtime] Error occurred during safeRun:", error);
-    throw error;
-  }
+export function loadFromFile(filename: string): CompiledProgram {
+  const file = readFileSync(filename);
+  return loadFromBuffer(file);
 }

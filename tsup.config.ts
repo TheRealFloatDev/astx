@@ -9,7 +9,8 @@ export default defineConfig({
   entry: [
     "src/index.ts",
     "src/compiler.ts",
-    "src/loader.ts",
+    "src/loader/buffer.ts",
+    "src/loader/file.ts",
     "src/runtime/default.ts",
     "src/runtime/safe.ts",
   ],

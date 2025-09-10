@@ -1,6 +1,6 @@
 {
   "name": "@astx/lib",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Compiler & Runtime library for a tiny JS AST based binary file format",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -9,19 +9,19 @@
     "dist"
   ],
   "exports": {
-    "/compiler": {
+    "./compiler": {
       "import": "./dist/compiler.mjs",
       "require": "./dist/compiler.js"
     },
-    "/loader": {
+    "./loader": {
       "import": "./dist/loader.mjs",
       "require": "./dist/loader.js"
     },
-    "/runtime": {
+    "./runtime": {
       "import": "./dist/runtime/default.mjs",
       "require": "./dist/runtime/default.js"
     },
-    "/runtime/safe": {
+    "./runtime/safe": {
       "import": "./dist/runtime/safe.mjs",
       "require": "./dist/runtime/safe.js"
     }

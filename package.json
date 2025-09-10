@@ -5,43 +5,9 @@
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "typesVersions": {
-    "*": {
-      "@astx/lib/*": [
-        "dist/*"
-      ]
-    }
-  },
   "files": [
     "dist"
   ],
-  "exports": {
-    "./compiler": {
-      "import": "./dist/compiler/index.mjs",
-      "require": "./dist/compiler/index.js",
-      "types": "./dist/compiler/index.d.ts"
-    },
-    "./loader/buffer": {
-      "import": "./dist/loader/buffer.mjs",
-      "require": "./dist/loader/buffer.js",
-      "types": "./dist/loader/buffer.d.ts"
-    },
-    "./loader/file": {
-      "import": "./dist/loader/file.mjs",
-      "require": "./dist/loader/file.js",
-      "types": "./dist/loader/file.d.ts"
-    },
-    "./runtime": {
-      "import": "./dist/runtime/index.mjs",
-      "require": "./dist/runtime/index.js",
-      "types": "./dist/runtime/index.d.ts"
-    },
-    "./runtime/safe": {
-      "import": "./dist/runtime/safe.mjs",
-      "require": "./dist/runtime/safe.js",
-      "types": "./dist/runtime/safe.d.ts"
-    }
-  },
   "scripts": {
     "build": "tsup",
     "test": "jest --passWithNoTests",

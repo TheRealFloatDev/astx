@@ -203,6 +203,7 @@ type RunMode = "eval" | "scoped" | "vm";
 interface RunOptions {
   mode?: RunMode;
   inject?: Record<string, any>;
+  skipDefaultInjects?: boolean;
 }
 
 /**
@@ -216,14 +217,19 @@ export function run(compiled: CompiledProgram, options: RunOptions = {}) {
   const mode: RunMode = options.mode ?? "eval";
   const inject = options.inject ?? {};
 
-  const defaultInjects = {
-    require: typeof require !== "undefined" ? require : undefined,
-    import: (path: string) => import(path), // dynamic import for ESM
-    process: process,
-    console: console,
-  };
+  let context: Record<string, any> = {};
+  if (!options.skipDefaultInjects) {
+    const defaultInjects = {
+      require: typeof require !== "undefined" ? require : undefined,
+      import: (path: string) => import(path), // dynamic import for ESM
+      process: process,
+      console: console,
+    };
 
-  const context = { ...defaultInjects, ...inject };
+    context = { ...defaultInjects };
+  }
+
+  context = { ...context, ...inject };
 
   if (mode !== "vm" && !context.require) {
     console.warn(

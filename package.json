@@ -1,6 +1,6 @@
 {
   "name": "@astx/lib",
-  "version": "1.9.9",
+  "version": "1.9.10",
   "description": "Compiler & Runtime library for a tiny JS AST based binary file format",
   "files": [
     "dist"
@@ -46,9 +46,9 @@
       "types": "./dist/loader/file.d.ts"
     },
     "./runtime": {
-      "import": "./dist/runtime/index.mjs",
-      "require": "./dist/runtime/index.js",
-      "types": "./dist/runtime/index.d.ts"
+      "import": "./dist/runtime/default.mjs",
+      "require": "./dist/runtime/default.js",
+      "types": "./dist/runtime/default.d.ts"
     },
     "./runtime/safe": {
       "import": "./dist/runtime/safe.mjs",

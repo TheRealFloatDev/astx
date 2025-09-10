@@ -11,23 +11,28 @@
   "exports": {
     "./compiler": {
       "import": "./dist/compiler.mjs",
-      "require": "./dist/compiler.js"
+      "require": "./dist/compiler.js",
+      "types": "./dist/compiler.d.ts"
     },
     "./loader/buffer": {
       "import": "./dist/loader/buffer.mjs",
-      "require": "./dist/loader/buffer.js"
+      "require": "./dist/loader/buffer.js",
+      "types": "./dist/loader/buffer.d.ts"
     },
     "./loader/file": {
       "import": "./dist/loader/file.mjs",
-      "require": "./dist/loader/file.js"
+      "require": "./dist/loader/file.js",
+      "types": "./dist/loader/file.d.ts"
     },
     "./runtime": {
       "import": "./dist/runtime/default.mjs",
-      "require": "./dist/runtime/default.js"
+      "require": "./dist/runtime/default.js",
+      "types": "./dist/runtime/default.d.ts"
     },
     "./runtime/safe": {
       "import": "./dist/runtime/safe.mjs",
-      "require": "./dist/runtime/safe.js"
+      "require": "./dist/runtime/safe.js",
+      "types": "./dist/runtime/safe.d.ts"
     }
   },
   "scripts": {

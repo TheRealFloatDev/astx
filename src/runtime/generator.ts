@@ -15,12 +15,12 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-import generate from "@babel/generator";
+import * as generateModule from "@babel/generator";
 import { CompiledProgram } from "..";
 import { decodeToAST } from "../loader/shared";
 
 export function generateJSCode(compiled: CompiledProgram): string {
   const ast = decodeToAST(compiled);
-  const { code } = generate(ast);
+  const { code } = generateModule.default(ast);
   return code;
 }

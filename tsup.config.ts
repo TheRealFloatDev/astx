@@ -12,6 +12,7 @@ export default defineConfig({
     "src/loader/buffer.ts",
     "src/loader/file.ts",
     "src/runtime/default.ts",
+    "src/runtime/generator.ts",
     "src/runtime/safe.ts",
   ],
   format: ["cjs", "esm"], // Build for commonJS and ESmodules

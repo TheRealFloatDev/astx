@@ -1,6 +1,6 @@
 {
   "name": "@astx/lib",
-  "version": "1.9.10",
+  "version": "1.10.0",
   "description": "Compiler & Runtime library for a tiny JS AST based binary file format",
   "files": [
     "dist"
@@ -31,9 +31,9 @@
   },
   "exports": {
     "./compiler": {
-      "import": "./dist/compiler/index.mjs",
-      "require": "./dist/compiler/index.js",
-      "types": "./dist/compiler/index.d.ts"
+      "import": "./dist/compiler.mjs",
+      "require": "./dist/compiler.js",
+      "types": "./dist/compiler.d.ts"
     },
     "./loader/buffer": {
       "import": "./dist/loader/buffer.mjs",
@@ -54,6 +54,11 @@
       "import": "./dist/runtime/safe.mjs",
       "require": "./dist/runtime/safe.js",
       "types": "./dist/runtime/safe.d.ts"
+    },
+    "./runtime/generator": {
+      "import": "./dist/runtime/generator.mjs",
+      "require": "./dist/runtime/generator.js",
+      "types": "./dist/runtime/generator.d.ts"
     }
   },
   "repository": {

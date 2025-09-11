@@ -15,24 +15,12 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+import generate from "@babel/generator";
 import { CompiledProgram } from "..";
-import { generateJSCode } from "../runtime/generator";
+import { decodeToAST } from "../loader/shared";
 
-/**
- * Safely runs a compiled program with error handling.
- *
- * Compared to the `run` function, this function does not support any different modes or dependency/context injection.
- *
- * @param compiled The compiled program
- * @returns The result of the program
- */
-export function safeRun(compiled: CompiledProgram) {
-  const code = generateJSCode(compiled);
-
-  try {
-    return eval(code);
-  } catch (error) {
-    console.error("[ASTX Runtime] Error occurred during safeRun:", error);
-    throw error;
-  }
+export function generateJSCode(compiled: CompiledProgram): string {
+  const ast = decodeToAST(compiled);
+  const { code } = generate(ast);
+  return code;
 }

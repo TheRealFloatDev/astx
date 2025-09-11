@@ -33,7 +33,6 @@
  */
 
 import { CompiledProgram, MINIMAL_AST_KEYS } from "..";
-import generate from "@babel/generator";
 import { templateElement } from "@babel/types";
 
 const RESERVED_WORDS = new Set([
@@ -117,7 +116,7 @@ function generateShortName(index: number): string {
   return name;
 }
 
-function decodeToAST(compiled: CompiledProgram): any {
+export function decodeToAST(compiled: CompiledProgram): any {
   const { expressionDict, valueDict, bytecode } = compiled;
 
   function decode(index: number): any {
@@ -164,10 +163,4 @@ function decodeToAST(compiled: CompiledProgram): any {
   }
 
   return decode(bytecode.length - 1);
-}
-
-export function generateJSCode(compiled: CompiledProgram): string {
-  const ast = decodeToAST(compiled);
-  const { code } = generate(ast);
-  return code;
 }

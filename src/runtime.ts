@@ -24,7 +24,7 @@ import {
 } from ".";
 import { decompress } from "brotli";
 import { readFileSync } from "fs";
-import generate from "@babel/generator";
+import { default as generate } from "@babel/generator";
 import { templateElement } from "@babel/types";
 import path from "path";
 

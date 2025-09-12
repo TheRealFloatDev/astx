@@ -24,9 +24,12 @@ import {
 } from ".";
 import { decompress } from "brotli";
 import { readFileSync } from "fs";
-import { default as generate } from "@babel/generator";
 import { templateElement } from "@babel/types";
 import path from "path";
+
+import { safeESModule } from "./compatability";
+import { default as _generate } from "@babel/generator";
+const generate = safeESModule(_generate);
 
 const RESERVED_WORDS = new Set([
   "abstract",

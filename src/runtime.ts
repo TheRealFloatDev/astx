@@ -234,7 +234,7 @@ export function run(compiled: CompiledProgram, options: RunOptions = {}) {
 
   context = { ...context, ...inject };
 
-  if (mode !== "vm" && !context.require) {
+  if (mode !== "vm" && !context.require && !options.skipDefaultInjects) {
     console.warn(
       "[ASTX Runtime] Warning: 'require' seems not to be available in the current environment."
     );

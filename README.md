@@ -10,6 +10,9 @@ That means that every JavaScript program can be compiled to an ASTX binary file 
 
 This project is inspired by [WebAssembly](https://webassembly.org/), but it is not meant to be a replacement for it.
 
+## This project has moved!!
+This project is now maintained by [Garmingo](https://github.com/Garmingo) and has moved to [https://github.com/Garmingo/astx](https://github.com/Garmingo/astx)
+
 ## Benefits of working with an AST-based binary format
 - **Size**: The binary format is smaller than the original JavaScript source code.
 - **Feature support**: Since we are working on the JavaScript AST, we can support all JavaScript features. (Some features **might** not be fully supported yet)
